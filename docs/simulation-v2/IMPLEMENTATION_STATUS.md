@@ -165,4 +165,22 @@
 - Performance impact：seed37、8×4/16slots、checkpoint25，100/500/1000turn人口12950/9944/6321，richness5/3/3；最大人口13630，累计捕杀240、迁移440180；最大C残差4.58e-12、N漂移4.55e-13。RSS58.89/59.06/59.19MB，存档12.10/52.87/101.59MB，末100turn median467.2ms（含存储、profile/校验及同期测试负载）。工程额外内存为tile结构数组，事件仅在显著变化时保留最多8个tile摘要。
 - Known issues：默认1000turn仍未观察自然分化，营养结构/长期多样性并未达到目标。区域公共环境收益不伪装成即时个体收益；fitness仍是固定密度代理。双向选择机制通过不代表自然军备竞赛已经被证实；无湖泊溢流、无存档GC等既有限制保留。
 - Save compatibility：新28stage manifest与17/20/26区分；旧26固定hash回归保持。旧JSON/gzip读写/导入的全量回归持续执行；未删除旧默认游戏路径。
-- Next：实验室HTTP/React Query/SSE、历史叙事与形态展示最终验收；不可变情景计划、可恢复并行实验；之后显式新配方验证自适应演化精度。
+- Next（当时计划）：实验室HTTP/React Query/SSE、历史叙事与形态展示；情景计划与并行世界。后续执行方式以下文最新要求为准。
+
+## Step 7b — 可玩入口、世界分支与场景
+
+用户于2026-09-30明确要求停止验证，减少学术化，优先可玩性。已停止后续测试、lint、typecheck、build和长跑任务；以下是实现记录，不是验收结论。
+
+- Changed files：`backend/app/main.py` 挂载独立V2服务；`frontend/src/main.tsx` 增加 `/play` 与 `/lab`，经典入口增加沙盒链接；迁移范围脚本增加API目录。
+- New files：`backend/app/api/v2/`；`simulation/v2/experiments/`；AI叙事计划器和离线worker命令；`frontend/src/v2/`；`PLAY_GUIDE.md`、`LAB_GUIDE.md`、`SCENARIO_EXPERIMENTS.md`。
+- 游玩：新世界、1/10/50回合快进、当前回合结束后暂停、暖化/冰河/单回合灾变、自动保存、上次请求恢复、历史地图、任意历史节点分支、回溯重来。
+- 观察：物种星标关注、角色/压力/变化的中文说明、性状外观、地形/物种/温度/植被图层、事件纪事。数值分布、哈希、运行信息移入高级折叠区。
+- 平行世界：预设情景从同一历史节点创建原环境与变化分支，推进并比较结果，可进入分支继续游玩。高级设置保留多分支、回合安排、JSON导入导出与可恢复执行。
+- 后端：严格命令和完整版本、已提交快照只读回放、事件SSE、React Query失效；持久情景计划、稳定操作标识、有界并行与断点续跑；AI结果仅作为叙事附注。
+- 另有已写但未接入默认配方的自适应演化精度模块 `resolution*.py`。不把这个接口当作已上线的“快速模式”。
+- Removed legacy code：无；经典模式尚未切换到新核心。
+- Tests added：保留用户改变要求前已经写下的后端/前端测试；本轮玩法调整不增加测试。Tests passed：不提供当前代码的通过结论，没有继续运行验证。以前的结果只适用于当时的代码。
+- Known issues：真实LLM worker未自动接入；Mod SDK与完整legacy替换尚未实现；玩法平衡仍需后续迭代。当前新数值运行环境限定Linux/glibc x86-64。
+- Performance impact：快进按回合顺序保存并更新界面，平行世界有界并发；本轮不做性能测量，未宣称加速。
+- Save compatibility：旧JSON/gzip入口保留，新世界使用独立SQLite/NPZ；已知旧V2配方继续按原manifest选择，不静默升级。
+- Next migration step：继续围绕物种成长、地图互动和玩家选择打磨游戏体验，按需接入真实叙事提供方；不再默认启动验证流程。

@@ -1,0 +1,135 @@
+.map-play-card .map-play-layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
+  margin-top: 14px;
+  border-radius: 10px;
+  background: #edf1e8;
+}
+.map-play-layers button {
+  flex: 1;
+  min-width: 72px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #52634e;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.map-play-layers button[aria-pressed="true"] {
+  border-color: #ccd8c4;
+  background: #fffef9;
+  color: #294d35;
+  font-weight: 700;
+  box-shadow: 0 2px 4px #2c46250c;
+}
+.map-play-layers button:focus-visible,
+.map-play-details summary:focus-visible {
+  outline: 2px solid #447452;
+  outline-offset: 3px;
+}
+.map-play-card .map-play-board {
+  background: #f1f4ec;
+  margin: 12px 0 10px;
+}
+.map-play-board g:focus { outline: none; }
+.map-play-board g:focus-visible polygon { stroke: #a25617; stroke-width: 3; }
+.map-play-board g:hover polygon { stroke: #294d35; stroke-width: 1.8; }
+.map-play-board text { pointer-events: none; }
+.map-play-empty {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px dashed #b8c9b2;
+  border-radius: 8px;
+  background: #f4f8ef;
+  color: #54664e;
+  font-size: 12px;
+}
+.map-play-empty strong { color: #365736; }
+.map-play-legend,
+.map-play-legend-item,
+.map-play-scale {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.map-play-legend { gap: 8px 14px; color: #566653; font-size: 11px; }
+.map-play-legend-item,
+.map-play-scale { gap: 6px; }
+.map-play-legend-item > i {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  border: 1px solid #17302010;
+}
+.map-play-scale .map-play-gradient {
+  display: inline-block;
+  width: 110px;
+  height: 8px;
+  border-radius: 20px;
+}
+.map-play-population-gradient {
+  background: linear-gradient(90deg, hsl(206 58% 83%), hsl(206 58% 36%));
+}
+.map-play-temperature-gradient {
+  background: linear-gradient(90deg, hsl(220 64% 65%), hsl(110 64% 65%), hsl(0 64% 65%));
+}
+.map-play-vegetation-gradient {
+  background: linear-gradient(90deg, hsl(112 35% 91%), hsl(112 35% 34%));
+}
+.map-play-scale small { margin-left: 5px; color: #6b7864; }
+.map-play-card .map-play-help { margin: 9px 0 16px; color: #75806e; font-size: 11px; }
+.map-play-place {
+  padding: 15px;
+  border: 1px solid #dde5d5;
+  border-radius: 10px;
+  background: #f7f9f2;
+}
+.map-play-place-title { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.map-play-biome-dot { width: 12px; height: 12px; border-radius: 50%; }
+.map-play-place-title h3 { margin: 0; color: #2f4b32; font-size: 16px; }
+.map-play-place-title > span:last-child { margin-left: auto; font-size: 10px; color: #77816f; }
+.map-play-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.map-play-facts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+.map-play-facts span,
+.map-play-facts small { color: #708067; font-size: 10px; overflow-wrap: anywhere; }
+.map-play-facts strong { color: #344c34; font-size: 15px; overflow-wrap: anywhere; }
+.map-play-details {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #e4e9de;
+  font-size: 11px;
+  color: #6b7864;
+}
+.map-play-details summary { width: fit-content; cursor: pointer; }
+.map-play-details > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 16px;
+  padding-top: 14px;
+}
+.map-play-details > div > span { display: flex; justify-content: space-between; gap: 8px; }
+.map-play-details strong { color: #445841; font-weight: 500; }
+.map-play-details p { margin: 12px 0 0; color: #7a8473; font-size: 10px; }
+@media (max-width: 520px) {
+  .map-play-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .map-play-facts > div:last-child { grid-column: 1 / -1; }
+  .map-play-details > div { grid-template-columns: 1fr; }
+  .map-play-place-title > span:last-child { margin-left: 0; }
+}
