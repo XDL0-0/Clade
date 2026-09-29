@@ -105,3 +105,16 @@
 - Performance impact：单kernel纯算术；未测完整环境负载；引擎每次重试可纯重算固定旧snapshot，由store保证幂等发布。
 - Save compatibility：旧读写/新导入全通过；未知model/stage版本不会静默继续运行。
 - Next：明确新参考生态单位与拓扑，迁移环境闭包；资源旧公式oracle与新闭合能量模型分开验收。
+
+## Step 6b — 统一拓扑、环境闭包与资源层
+
+- Changed files：pyproject.toml / requirements-dev.lock 增加 hash 锁定的 Hypothesis 及 sortedcontainers，其余已锁版本保留。
+- New files：reference/{common,topology,world,environment,hydrology,resources,__init__}.py；stages/resources/{legacy,__init__}.py；6 组对应测试；RESOURCE_ECOLOGY_MIGRATION_MAP.md、REFERENCE_MODEL.md。
+- Removed legacy code：无。旧 NPP、资源更新和捕食压力按原算术顺序纯提取；保留旧单位/库存缺陷作为 oracle，不把新参考生态伪装成旧数值等价实现。
+- 新模型：统一奇列六边形圆柱地图；可复现 genesis 与预留 species slots；气候→持久板块/地形→守恒水文→多因素 biome→活生产者 NPP→凋落/分解/养分回收。定义生态/地质两个时间尺度、碳当量和水深单位，详细限制见 REFERENCE_MODEL。
+- Tests added/passed：拓扑50、环境61、资源52、genesis/整链replay21、legacy oracle201，共385项；Hypothesis覆盖随机小图水收支、资源C/N/水收支。共享工作区全量1442 passed / 9既有warnings（其中已包含尚待独立验收的下一批ecology32、demography14，不能重复累加）；61个迁移源/测试文件Ruff/format/strict mypy通过。
+- 独立查看：季节南北相位错误、显式未知topology被接受、大库存吞掉NPP但仍扣养分/水三项均有反例并修复，再次独立复验184项通过；账本按各库存差求和，超出基于通量的数值容差立即拒绝candidate。调整测试中的错误季节预期，增加精度损失与未知拓扑回归。
+- Performance impact：上述385项定向测试约2秒；审核阶段曾对固定population环境资源链跑3 seed×1000 turn，残差小，但这些长跑在最后三项修复前运行，只作为探索证据，不当最终完整生态验收。资源metrics仅标量总量/最大误差，不存tile数组副本。
+- Known issues：尚无完整生态长跑；水文无湖盆溢流，封闭洼地水可持续积累；生态年当前固定12 turn季节；基础分解/外部无机碳和水生水库是明确简化；默认旧游戏入口仍未切换。预留slot容量、CPU开销需要完整模型验收后评估。
+- Save compatibility：旧JSON/gzip读写/导入全量回归仍通过。新参考genesis显式新model；6stage历史可重建，分支共享输入RNG时同数值结果，+4°C分支不污染control。
+- Next：审查适宜度/动态K/竞争/Holling摄食，接入守恒迁移和统一人口账本，再进入selection与演化。

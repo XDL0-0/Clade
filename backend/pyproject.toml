@@ -31,6 +31,7 @@ dev = [
     "pytest>=8.2.0",
     "pytest-asyncio>=1.0.0",
     "pytest-socket>=0.7.0",
+    "hypothesis>=6.100.0",
     "anyio>=4.4.0",
     "imageio>=2.31.0",
     "lz4>=4.0.0",
