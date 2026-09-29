@@ -10,9 +10,9 @@
 | B2 Stage配置合同 | 已通过 | 明确模式优先级、稳定ID、错误依赖拒绝、四种清单 |
 | B3 回归捕获/旧档fixture | 工具已通过，生产长跑oracle待建立 | 逐回合捕获、结构差异失败、JSON/gzip旧档roundtrip |
 | Foundation | 已通过 | TurnContext / StageResult / WorldEvent / WorldVersion / SeedManager |
-| Async Safety | 运行令牌补丁已通过，持久Job实施中 | 运行协调、AIJob、幂等、版本/lease、stale拒绝 |
-| Persistence | 实施中 | checkpoint/delta、原子提交、timeline、replay、旧档导入 |
-| Environment / Resources | 待迁移 | 气候/地质/水文/biome、NPP与资源再生 |
+| Async Safety | 新路径合同/持久任务已通过，旧AI写者逐Stage迁移 | 运行协调、AIJob、幂等、版本/lease、stale拒绝 |
+| Persistence | 核心存储与旧档导入已通过 | checkpoint/delta、原子提交、timeline、replay、旧档导入 |
+| Environment / Resources | 开始气候标量等价提取 | 气候/地质/水文/biome、NPP与资源再生 |
 | Ecology / Movement / Population | 待迁移 | 动态K、竞争/捕食/疾病、守恒迁移、死亡与繁殖ledger |
 | Evolution / Speciation | 待迁移 | 压力/梯度/代价/变异/漂变/基因流、分化与灭绝生命周期 |
 | Explainability / Emergence | 待实施 | EvolutionTrace、因果历史、niche construction、coevolution |
@@ -67,3 +67,29 @@
 - Known issues：取消route不等于同步worker停止；此补丁不是world fencing。成功请求的旧autosave仍读取live state，后续迁移到immutable commit。abort接口现在明确表示仅重置AI HTTP连接。
 - Performance impact：每次run增加两次短锁；未改数值计算；无性能压测。
 - Save compatibility：旧保存格式与读取保持；Next：新的持久AIJob和版本事务。
+
+## Step 4b — AI合同、worker与provider适配器
+
+- New files：app/ai/jobs/{models,schemas,worker,provider,__init__}.py；tests/ai/jobs/{test_contracts,test_worker,test_provider}.py（文件列表以提交为准）。
+- Changed files / Removed legacy code：未修改ModelRouter等旧实现，未删除legacy。适配器通过注入已有acall_capability复用配置。
+- 实现：4类Pydantic strict/extra-forbid叙事schema；冻结目标/器官/事件验证；完整WorldVersion、scoped幂等identity；一次repair、timeout、有界attempt/fallback、取消传播；结构化JSON provider适配与安全错误分类。
+- Tests passed：合同/worker46项+provider57项，共103项离线测试；Ruff、format、strict mypy通过。无真实LLM调用、无外部费用。
+- Known issues：重试worker由调用方调度，尚未把旧speciation/hybridization等AI写者改接；不能据此宣布旧活动世界已与LLM完全解耦。当前返回fallback记录，未来UI按事件提供默认模板。
+- Performance impact：provider异步调用不参与数值hash；无真实token/延迟基准；新输入/输出均限制64KiB。
+- Save compatibility：旧档不存这些job，不伪造恢复；新任务与下述SQLite提交一同持久化。
+- Next：逐领域替换旧writer，优先迁移可等价提取的环境kernel。
+
+## Step 5 — Persistence / durable AI transaction 验收
+
+- New files：app/storage/{database,codec,history,store,objects,jobs,observations,legacy,__init__}.py；tests/storage/{test_objects,test_world_store,test_jobs,test_command_inputs,test_legacy_import}.py；scripts/benchmark_v2_storage.py；evidence/storage-stress-1000.json。
+- Changed files：v2/pipeline.py将active_events固定为输入，输出事件只归StageResult，以免输入身份混入输出；对应独立测试调整并保留隔离断言。
+- Removed legacy code：无。旧JSON/gzip reader/writer继续可用，新格式magic为clade.checkpoint-delta，不混淆旧version=2.0。
+- 实现：SQLite WAL/FULL/外键事务；command完整输入与hash；head CAS；周期checkpoint+实体delta+NPZ分块内容寻址；完整commit元数据checksum；fork共享祖先/对象；generation rewind；固定Turn.end_version；只读replay；独立cursor outbox；同revision事件/metrics/Stage profiler。
+- AI事务：world commit同事务入队，lease/fencing重领，finish同事务schema+scope+version校验，仅写annotation/独立narrative revision；stale不写展示或世界；APPLIED重投保留终态；取消与完成并发只有一个结果。
+- 旧档导入：独立临时目录校验/replay后发布，源JSON/gzip不修改；人口/栖息地/食物网/地图严格校验；旧名称/历史完整归档一次；缺状态明示warnings，不伪造历史；原子不覆盖已有目标。
+- Tests passed：当前后端全量864 passed、0 skipped、9既有warnings；随后新增1项profile/event/metric一致性定向测试通过（后续全量再合并计数）。storage195项包含对象89、world29、jobs30、command3、legacy44；新增profile测试后196。迁移33文件Ruff/format/strict mypy通过；benchmark脚本另行检查。
+- 独立审查修复：active_events/jobs未纳入命令身份、turn元数据损坏、损坏payload异常不一致、历史祖先循环；追加固定turn边界和完整command输入，避免replay与resimulation混淆。
+- Performance impact：16×512整数数组、1000次事务、每25回合mock叙事提交；两次运行100/500/1000检查点hash完全相同。验证轮存档415675/1589298/2866920 bytes，末100回合p50=45.06ms、p95=77.11ms（含tracemalloc与读取校验）；当前RSS约51.7/52.8/53.5MB，不能把这一个固定规模实验当作已排除所有泄漏。512种循环数组状态被去重。
+- Known issues：这是存储+Mock AI压力测试，不是完整生态长跑；尚未完成100/500/1000 turn多营养级模拟验收。对象层当前需POSIX，导入无覆盖发布需Linux renameat2，不支持的平台明确失败，未声称Windows可用。未提供自动GC/retention；对象崩溃可产生安全的未引用块。新版尚未接管默认UI/旧全局引擎。
+- Save compatibility：JSON/gzip旧fixture读写测试持续通过；新导入从保存turn开始可回放，缺失过去世界无法恢复；新模型继续运行必须显式校验model/stage版本。
+- Next：独立SimulationEngineV2协调器，global climate pressure公式+旧wrapper语义精确对照，再迁移地质closure和空间拓扑。

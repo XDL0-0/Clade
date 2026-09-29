@@ -244,7 +244,8 @@ def test_prior_stage_deltas_and_wall_clock_are_not_an_undeclared_read_channel() 
     ]
     result = DeterministicPipeline(stages).execute(context)
     assert len(result.stage_results) == 2
-    assert len(result.active_events) == 2
+    assert result.active_events == (initial_event,)
+    assert len(result.stage_results[0].events) == 1
     assert result.metrics["producer"] == {"private": 123}
     assert result.warnings == ("private diagnostic",)
     assert result.evolution_proposals == result.ai_jobs == ({"private": 123},)

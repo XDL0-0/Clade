@@ -98,7 +98,6 @@ class DeterministicPipeline:
                     candidate,
                     snapshot=snapshot,
                     stage_results=(*candidate.stage_results, result),
-                    active_events=(*candidate.active_events, *result.events),
                     evolution_proposals=(
                         *candidate.evolution_proposals,
                         *result.evolution_proposals,

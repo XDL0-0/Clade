@@ -1,0 +1,44 @@
+{
+  "scope": "checkpoint/delta/replay + mock narrative transactions; no ecology model",
+  "turns": 1000,
+  "species": 16,
+  "tiles": 512,
+  "windows": [
+    {
+      "turn": 100,
+      "state_hash": "a16019fd4a71795f32cbcb72715cd19c2f2ef36407fc343a80d4aa4616680ea5",
+      "save_bytes": 415675,
+      "array_objects": 101,
+      "python_heap_bytes": 1611364,
+      "python_peak_bytes": 2161586,
+      "process_peak_rss_kib": 868372,
+      "current_rss_bytes": 51699712,
+      "last_100_p50_ms": 44.666798086836934,
+      "last_100_p95_ms": 74.39402025192976
+    },
+    {
+      "turn": 500,
+      "state_hash": "5b07ffef264b3f8370fc0b4a755d47e5ad97f7a8911921aac41d7a1cc19dcc64",
+      "save_bytes": 1589298,
+      "array_objects": 501,
+      "python_heap_bytes": 1856258,
+      "python_peak_bytes": 2962532,
+      "process_peak_rss_kib": 868372,
+      "current_rss_bytes": 52793344,
+      "last_100_p50_ms": 44.85829337500036,
+      "last_100_p95_ms": 72.83658720552921
+    },
+    {
+      "turn": 1000,
+      "state_hash": "308a4841af7959ffae0b12b048675e800ee47fe58124eaaf01dfa90900a8a3e1",
+      "save_bytes": 2866920,
+      "array_objects": 512,
+      "python_heap_bytes": 2170294,
+      "python_peak_bytes": 3258736,
+      "process_peak_rss_kib": 868372,
+      "current_rss_bytes": 53518336,
+      "last_100_p50_ms": 45.05755426362157,
+      "last_100_p95_ms": 77.10536755621433
+    }
+  ]
+}
