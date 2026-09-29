@@ -52,11 +52,20 @@ class FitnessInputs:
     totals: FloatArray
     incident: Mapping[int, tuple[EdgeExposure, ...]]
     interaction_count: int
+    defensive_groups: bool = False
 
 
-def prepare_fitness(context: TurnContext) -> FitnessInputs:
+def prepare_fitness(
+    context: TurnContext, *, refuge: FloatArray | None = None, defensive_groups: bool = False
+) -> FitnessInputs:
     """Build O(E*T) exposure summaries, with no all-species-pairs scan."""
     data = selection_inputs(context)
+    if refuge is not None and (
+        refuge.shape != (data.population.shape[1],)
+        or not np.isfinite(refuge).all()
+        or np.any((refuge < 0) | (refuge > 1))
+    ):
+        raise ValueError("Habitat refuge must match finite tile values in [0,1]")
     totals = data.population.sum(axis=1, dtype=np.float64)
     by_slot = {item.slot: item for item in data.species}
     incident: dict[int, list[EdgeExposure]] = {item.slot: [] for item in data.species}
@@ -69,6 +78,8 @@ def prepare_fitness(context: TurnContext) -> FitnessInputs:
             data.arrays["suitability"][predator_slot],
             data.arrays["suitability"][prey_slot],
         )
+        if refuge is not None:
+            overlap *= 1 - 0.5 * refuge
         active = (
             (data.population[predator_slot] > 0) & (data.population[prey_slot] > 0) & (overlap > 0)
         )
@@ -91,7 +102,11 @@ def prepare_fitness(context: TurnContext) -> FitnessInputs:
         incident[prey_slot].append(edge)
         count += 1
     return FitnessInputs(
-        data, totals, {slot: tuple(edges) for slot, edges in incident.items()}, count
+        data,
+        totals,
+        {slot: tuple(edges) for slot, edges in incident.items()},
+        count,
+        defensive_groups,
     )
 
 
@@ -116,6 +131,7 @@ def _trophic_terms(data: FitnessInputs, focal: Species) -> list[float]:
             edge.prey_density,
             edge.habitat,
             edge.preference,
+            defensive_groups=data.defensive_groups,
         )
         if not math.isfinite(rate) or rate < 0:
             raise ValueError("counterfactual predation rate is not finite")

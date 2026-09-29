@@ -15,6 +15,7 @@ import numpy as np
 from ..context import TurnContext
 from ..contracts import SimulationStage, StageContract, StageResult
 from .common import FloatArray, IntArray, geometry, number, result
+from .physiology import thermal_response, water_response
 from .world import FEEDING_VERSION
 
 MODEL_VERSION = "ecology-reference-v1"
@@ -224,18 +225,8 @@ class HabitatSuitabilityStage(SimulationStage):
             water_pressure = np.zeros_like(data.reserve)
             land = data.biome >= 2
             for item in data.species:
-                thermal = np.exp(
-                    -np.square(
-                        (data.arrays["temperature"] - item.optimum)
-                        / (item.width * (1 + 0.25 * item.traits["armor"]))
-                    )
-                )
-                need = 40 * item.water_need * (1 - 0.5 * item.traits["engineering"])
-                soil = data.arrays["soil_water"]
-                hydration = np.divide(
-                    soil, soil + need, out=np.ones_like(soil), where=soil + need > 0
-                )
-                hydration = np.where(land, hydration, 1.0)
+                thermal = thermal_response(item, data.arrays["temperature"])
+                hydration = water_response(item, data.arrays["soil_water"], land)
                 habitat = (
                     np.ones_like(land)
                     if item.habitat == "amphibious"

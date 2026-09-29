@@ -26,7 +26,11 @@ from app.ai.jobs.models import JobSpec
 from app.ai.jobs.schemas import fallback_result
 from app.simulation.v2.context import TurnContext, WorldSnapshot
 from app.simulation.v2.engine import SimulationEngineV2, TurnCommand
-from app.simulation.v2.reference.model import ecological_pipeline, evolution_pipeline
+from app.simulation.v2.reference.model import (
+    ecological_pipeline,
+    evolution_pipeline,
+    feedback_pipeline,
+)
 from app.simulation.v2.reference.world import MODEL_ID, create_reference_snapshot
 from app.simulation.v2.values import JsonValue, thaw
 from app.simulation.v2.version import WorldVersion
@@ -69,11 +73,23 @@ def mock_plan(context: TurnContext) -> tuple[JobSpec, ...]:
 
 
 def run(
-    turns: int, *, seed: int = 37, width: int = 8, height: int = 4, evolution: bool = False
+    turns: int,
+    *,
+    seed: int = 37,
+    width: int = 8,
+    height: int = 4,
+    evolution: bool = False,
+    feedback: bool = False,
 ) -> dict[str, object]:
     if turns < 1:
         raise ValueError("turns must be positive")
-    pipeline = evolution_pipeline() if evolution else ecological_pipeline()
+    pipeline = (
+        feedback_pipeline()
+        if feedback
+        else evolution_pipeline()
+        if evolution
+        else ecological_pipeline()
+    )
     source_hashes = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted((Path(__file__).parents[1] / "app/simulation/v2/reference").glob("*.py"))
@@ -114,8 +130,9 @@ def run(
             }
             carbon = organic_carbon(current)
             fixed = float(cast(float, metrics["reference_productivity"]["carbon_fixed"]))
-            respired = float(cast(float, metrics["reference_regeneration"]["carbon_respired"]))
-            respired += float(cast(float, metrics["reference_mortality"]["carbon_respired"]))
+            respired = sum(
+                float(cast(float, stage.get("carbon_respired", 0))) for stage in metrics.values()
+            )
             carbon_error = abs(carbon - old_carbon - fixed + respired)
             nitrogen = float(current.arrays["nutrients"].numpy().sum()) + 0.02 * carbon
             max_carbon_error = max(max_carbon_error, carbon_error)
@@ -181,7 +198,9 @@ def run(
                 )
     return {
         "scope": (
-            "26-stage ecosystem with deme evolution, speciation and extinction lifecycle"
+            "28-stage ecosystem with niche construction, physiological selection and group defense"
+            if feedback
+            else "26-stage ecosystem with deme evolution, speciation and extinction lifecycle"
             if evolution
             else "17-stage environment/resources/ecology/movement/demography; no evolution"
         ),
@@ -209,9 +228,15 @@ if __name__ == "__main__":
     parser.add_argument("--width", type=int, default=8)
     parser.add_argument("--height", type=int, default=4)
     parser.add_argument("--evolution", action="store_true")
+    parser.add_argument("--feedback", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = run(
-        args.turns, seed=args.seed, width=args.width, height=args.height, evolution=args.evolution
+        args.turns,
+        seed=args.seed,
+        width=args.width,
+        height=args.height,
+        evolution=args.evolution,
+        feedback=args.feedback,
     )
     args.output.write_text(json.dumps(report, indent=2) + "\n")

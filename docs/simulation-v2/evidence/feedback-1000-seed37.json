@@ -1,0 +1,362 @@
+{
+  "scope": "28-stage ecosystem with niche construction, physiological selection and group defense",
+  "seed": 37,
+  "turns": 1000,
+  "width": 8,
+  "height": 4,
+  "max_population": 13630,
+  "migration_steps": 440180,
+  "predation_deaths": 240,
+  "max_carbon_error": 4.575895218295045e-12,
+  "max_nutrient_error": 4.547473508864641e-13,
+  "mock_ai": "template-only immutable annotations every 50 turns",
+  "windows": [
+    {
+      "turn": 100,
+      "timing_samples": 100,
+      "state_hash": "ee2ac5c98dc2d8ce7109c5adeda5daa4c2d2a93d5e64a638af9f0c7d519c6981",
+      "save_bytes": 12100360,
+      "current_rss_bytes": 58888192,
+      "last_100_p50_ms": 535.517688607797,
+      "last_100_p95_ms": 836.7400448769331,
+      "metrics": {
+        "births": 388,
+        "deaths": 430,
+        "detritus_carbon": 7948.849903540881,
+        "ecosystem_stability": 0.9983810037776578,
+        "extinction_rate_per_year": 0.0,
+        "extinctions": 0,
+        "food_web_connectivity": 0.1,
+        "genetic_diversity": 5.234442826612221e-06,
+        "genetic_diversity_definition": "population-weighted within-species variance of seven deme mean traits; not individual genetic diversity or allele heterozygosity",
+        "mean_trophic_level": 1.0051006213484188,
+        "migration_rate": 0.051494768310911807,
+        "migration_rate_definition": "movement steps / (end population + deaths); not unique migrants",
+        "npp": 148.4455408896925,
+        "shannon_diversity": 0.45429885082047244,
+        "simpson_diversity": 0.22280629090204385,
+        "speciation_rate_per_year": 0.0,
+        "speciations": 0,
+        "species_richness": 5,
+        "stability_definition": "1 - Bray-Curtis abundance turnover since previous turn",
+        "structural_biomass": 2156.6000000000004,
+        "total_biomass": 8660.280996116886,
+        "total_population": 12950,
+        "trait_distribution": {
+          "armor": {
+            "mean": 0.09979060172052756,
+            "standard_deviation": 0.0013079213616495823
+          },
+          "attack": {
+            "mean": 0.08933501449068984,
+            "standard_deviation": 0.0011035237564162282
+          },
+          "cooperation": {
+            "mean": 0.08943585684925047,
+            "standard_deviation": 0.0013826895119115785
+          },
+          "detox": {
+            "mean": 0.08674173400617766,
+            "standard_deviation": 0.000633466385571555
+          },
+          "engineering": {
+            "mean": 0.08428072207948954,
+            "standard_deviation": 0.0010487085435996152
+          },
+          "speed": {
+            "mean": 0.0828445852052578,
+            "standard_deviation": 0.0017016925330754975
+          },
+          "toxin": {
+            "mean": 0.08769898355999316,
+            "standard_deviation": 0.0016999259689907528
+          }
+        }
+      },
+      "stage_duration_ms": {
+        "reference_climate": 1.207043882459402,
+        "reference_microclimate": 1.096260268241167,
+        "reference_geology": 1.840708777308464,
+        "reference_hydrology": 1.3087238185107708,
+        "reference_biome": 1.1153067462146282,
+        "reference_productivity": 1.701305154711008,
+        "reference_regeneration": 1.7467881552875042,
+        "reference_suitability": 1.9255350343883038,
+        "reference_capacity": 1.8731141462922096,
+        "reference_competition": 1.9277110695838928,
+        "reference_feeding": 2.646828070282936,
+        "reference_dispersal": 4.904237575829029,
+        "reference_migration": 4.150702152401209,
+        "reference_connectivity": 2.224286086857319,
+        "reference_mortality": 9.427801240235567,
+        "reference_reproduction": 2.6438236236572266,
+        "reference_population": 1.273701898753643,
+        "reference_selection": 1.8542120233178139,
+        "reference_fitness": 2.604232169687748,
+        "reference_mutation": 7.9391468316316605,
+        "reference_drift": 11.176833417266607,
+        "reference_gene_flow": 2.7088504284620285,
+        "reference_adaptation": 6.447733845561743,
+        "reference_speciation_proposal": 2.1374551579356194,
+        "reference_speciation": 2.5644111447036266,
+        "reference_niche": 1.8649022094905376,
+        "reference_extinction": 1.7696758732199669,
+        "reference_metrics": 1.9302419386804104
+      }
+    },
+    {
+      "turn": 500,
+      "timing_samples": 100,
+      "state_hash": "e466872ef4487b13944dde7957d3d09247e9b28f3ccb4ce6fe421bcf7c9a1e79",
+      "save_bytes": 52873244,
+      "current_rss_bytes": 59060224,
+      "last_100_p50_ms": 469.507290283218,
+      "last_100_p95_ms": 744.5813091471791,
+      "metrics": {
+        "births": 293,
+        "deaths": 305,
+        "detritus_carbon": 5710.97423078739,
+        "ecosystem_stability": 0.9990954773869347,
+        "extinction_rate_per_year": 0.0,
+        "extinctions": 0,
+        "food_web_connectivity": 0.0,
+        "genetic_diversity": 6.5597185601271604e-06,
+        "genetic_diversity_definition": "population-weighted within-species variance of seven deme mean traits; not individual genetic diversity or allele heterozygosity",
+        "mean_trophic_level": 1.0,
+        "migration_rate": 0.042931017660259536,
+        "migration_rate_definition": "movement steps / (end population + deaths); not unique migrants",
+        "npp": 89.19903309783273,
+        "shannon_diversity": 0.34843324575579554,
+        "simpson_diversity": 0.1640861187897601,
+        "speciation_rate_per_year": 0.0,
+        "speciations": 0,
+        "species_richness": 3,
+        "stability_definition": "1 - Bray-Curtis abundance turnover since previous turn",
+        "structural_biomass": 1455.5,
+        "total_biomass": 5898.597524788273,
+        "total_population": 9944,
+        "trait_distribution": {
+          "armor": {
+            "mean": 0.10260333514940752,
+            "standard_deviation": 0.004742723181957266
+          },
+          "attack": {
+            "mean": 0.038526845388631555,
+            "standard_deviation": 0.0019482844512826289
+          },
+          "cooperation": {
+            "mean": 0.03924777945010958,
+            "standard_deviation": 0.0015534418081296969
+          },
+          "detox": {
+            "mean": 0.03685645198266822,
+            "standard_deviation": 0.0011415281688084923
+          },
+          "engineering": {
+            "mean": 0.023591991307634386,
+            "standard_deviation": 0.002477934426590984
+          },
+          "speed": {
+            "mean": 0.019473459628051443,
+            "standard_deviation": 0.004953805542189822
+          },
+          "toxin": {
+            "mean": 0.035018881742321255,
+            "standard_deviation": 0.0007392809401106853
+          }
+        }
+      },
+      "stage_duration_ms": {
+        "reference_climate": 1.244132872670889,
+        "reference_microclimate": 1.1110100895166397,
+        "reference_geology": 1.8847491592168808,
+        "reference_hydrology": 1.335719134658575,
+        "reference_biome": 1.147974282503128,
+        "reference_productivity": 1.7811069265007973,
+        "reference_regeneration": 1.8253610469400883,
+        "reference_suitability": 1.968436874449253,
+        "reference_capacity": 1.863997895270586,
+        "reference_competition": 1.9350596703588963,
+        "reference_feeding": 2.6940079405903816,
+        "reference_dispersal": 4.435349255800247,
+        "reference_migration": 3.920906689018011,
+        "reference_connectivity": 2.2508432157337666,
+        "reference_mortality": 9.365168400108814,
+        "reference_reproduction": 2.361845225095749,
+        "reference_population": 1.3854028657078743,
+        "reference_selection": 1.9578798674046993,
+        "reference_fitness": 2.405772916972637,
+        "reference_mutation": 7.2808535769581795,
+        "reference_drift": 10.045418981462717,
+        "reference_gene_flow": 2.738888841122389,
+        "reference_adaptation": 4.2847078293561935,
+        "reference_speciation_proposal": 2.2208858281373978,
+        "reference_speciation": 2.656283788383007,
+        "reference_niche": 1.9673709757626057,
+        "reference_extinction": 1.768946647644043,
+        "reference_metrics": 1.9755298271775246
+      }
+    },
+    {
+      "turn": 1000,
+      "timing_samples": 100,
+      "state_hash": "acc79b20a0af8a6b907976ac32160ae23d981f124baf2546e9b795e4bcd1f157",
+      "save_bytes": 101593050,
+      "current_rss_bytes": 59187200,
+      "last_100_p50_ms": 467.2130800317973,
+      "last_100_p95_ms": 722.3540609702468,
+      "metrics": {
+        "births": 171,
+        "deaths": 207,
+        "detritus_carbon": 3615.9424486472535,
+        "ecosystem_stability": 0.9970026818110111,
+        "extinction_rate_per_year": 0.0,
+        "extinctions": 0,
+        "food_web_connectivity": 0.0,
+        "genetic_diversity": 2.9086084687973293e-06,
+        "genetic_diversity_definition": "population-weighted within-species variance of seven deme mean traits; not individual genetic diversity or allele heterozygosity",
+        "mean_trophic_level": 1.0,
+        "migration_rate": 0.04442401960784314,
+        "migration_rate_definition": "movement steps / (end population + deaths); not unique migrants",
+        "npp": 48.880735469541506,
+        "shannon_diversity": 0.33314901439859307,
+        "simpson_diversity": 0.1675048212314435,
+        "speciation_rate_per_year": 0.0,
+        "speciations": 0,
+        "species_richness": 3,
+        "stability_definition": "1 - Bray-Curtis abundance turnover since previous turn",
+        "structural_biomass": 888.8000000000001,
+        "total_biomass": 3377.3529001097095,
+        "total_population": 6321,
+        "trait_distribution": {
+          "armor": {
+            "mean": 0.08628350334056174,
+            "standard_deviation": 0.012271851927395182
+          },
+          "attack": {
+            "mean": 0.0006491859591824166,
+            "standard_deviation": 0.0011144056415565244
+          },
+          "cooperation": {
+            "mean": 0.001010450621467753,
+            "standard_deviation": 0.001493483363027578
+          },
+          "detox": {
+            "mean": 0.0009614365461604519,
+            "standard_deviation": 0.0014610445446257853
+          },
+          "engineering": {
+            "mean": 0.00037826537936035956,
+            "standard_deviation": 0.0007888198785571597
+          },
+          "speed": {
+            "mean": 0.0006085399140414084,
+            "standard_deviation": 0.0007943768120907887
+          },
+          "toxin": {
+            "mean": 0.0009081045450792052,
+            "standard_deviation": 0.0011092252406776013
+          }
+        }
+      },
+      "stage_duration_ms": {
+        "reference_climate": 1.2367703020572662,
+        "reference_microclimate": 1.121079083532095,
+        "reference_geology": 1.8974971026182175,
+        "reference_hydrology": 1.2943842448294163,
+        "reference_biome": 1.1318810284137726,
+        "reference_productivity": 1.7231912352144718,
+        "reference_regeneration": 1.7618057318031788,
+        "reference_suitability": 1.8961923196911812,
+        "reference_capacity": 1.8349457532167435,
+        "reference_competition": 1.9233450293540955,
+        "reference_feeding": 2.62816296890378,
+        "reference_dispersal": 4.171337001025677,
+        "reference_migration": 3.7332926876842976,
+        "reference_connectivity": 2.1831272169947624,
+        "reference_mortality": 9.143429808318615,
+        "reference_reproduction": 2.2543310187757015,
+        "reference_population": 1.2386362068355083,
+        "reference_selection": 1.8605799414217472,
+        "reference_fitness": 2.3170518688857555,
+        "reference_mutation": 6.790324114263058,
+        "reference_drift": 9.069606196135283,
+        "reference_gene_flow": 2.512746024876833,
+        "reference_adaptation": 4.05772402882576,
+        "reference_speciation_proposal": 2.215001732110977,
+        "reference_speciation": 2.548741176724434,
+        "reference_niche": 1.8568667583167553,
+        "reference_extinction": 1.7272341065108776,
+        "reference_metrics": 1.9695907831192017
+      }
+    }
+  ],
+  "engine_manifest": {
+    "model": "ecology-reference-v1",
+    "rng": "clade-blake2b-counter-v1",
+    "stages": {
+      "reference_adaptation": "ecology-reference-v1",
+      "reference_biome": "1",
+      "reference_capacity": "ecology-reference-v1",
+      "reference_climate": "1",
+      "reference_competition": "ecology-reference-v1",
+      "reference_connectivity": "ecology-reference-v1",
+      "reference_dispersal": "ecology-reference-v1",
+      "reference_drift": "ecology-reference-v1",
+      "reference_extinction": "1",
+      "reference_feeding": "3",
+      "reference_fitness": "2",
+      "reference_gene_flow": "ecology-reference-v1",
+      "reference_geology": "1",
+      "reference_hydrology": "1",
+      "reference_metrics": "2",
+      "reference_microclimate": "1",
+      "reference_migration": "ecology-reference-v1",
+      "reference_mortality": "1",
+      "reference_mutation": "ecology-reference-v1",
+      "reference_niche": "1",
+      "reference_population": "1",
+      "reference_productivity": "ecology-reference-v1",
+      "reference_regeneration": "ecology-reference-v1",
+      "reference_reproduction": "1",
+      "reference_selection": "ecology-reference-v1",
+      "reference_speciation": "1",
+      "reference_speciation_proposal": "1",
+      "reference_suitability": "ecology-reference-v1"
+    }
+  },
+  "runtime": {
+    "python": "3.12.13",
+    "numpy": "2.5.3"
+  },
+  "reference_source_hashes_at_start": {
+    "__init__.py": "c9e3b17e1a68953fc42d17b23508cab3564aee927382fb4ef8b0f30a33998ab3",
+    "adaptation.py": "4638834adef9f0a87a28ba4af3549fd62344f638da8930c987466e0b94182fac",
+    "common.py": "22823723df1d0f3bccb3e77074cb18e09f5cbbbee07a5ab5ff8e0fa9f10d423e",
+    "demography.py": "275d24bd322ee4b0faa6565229e7618d52a930298338a1d8238cf37ad339c15f",
+    "demography_inputs.py": "6eed0ec62c1d17d4553edaf45b1f2f413b6465738ad24972b53486da7fb8fe80",
+    "diversity.py": "df9717717f24cc9798ea5154b559d339780565a001d9c0c6555366b8c25b30cc",
+    "ecology.py": "9cfa912f62fa41fc90eeb46a4a02cbba4fcc9ab9278a5135c79de1f7c7c1de52",
+    "environment.py": "950f27a21967303c74d349dad39c0afa2464ebbd0202ad50bc40ecb52ee6985a",
+    "evolution_contracts.py": "38a4aee7783e55d46c460bedfeb3b0f294412334b1011d62c16660d1587cd001",
+    "extinction.py": "a085e3e8c61f27b52f1cc5bd20a73cb0c63057fe2d69eaa6e3655765c19ecbcd",
+    "feedback.py": "7e99f600734721bb6834fb411d0158a5b340f932e06d871c90068cf20f700834",
+    "feeding.py": "8c1cc9818751da70f2127839e92b5e21ff8b23adee43dc152a6566417d6d7807",
+    "fitness.py": "8a5452cb126e50d6eca95884557f2cba483e35c9bd994b99a7f86799a14a1d06",
+    "genetics.py": "0abd3496dd9f0a833a3421aa3803bbe8621ca577dc73a0be811ffef26eaf005d",
+    "hydrology.py": "431d500210a26f37c3bde04089d684db51cb24407954594b9faedfff1cb9df71",
+    "metrics.py": "a9f3dce0c5cd0a716e2f38970db0e946f3fa60b26364e866fee52f4a1d2c92fd",
+    "model.py": "cbb2fd418310b5da5c30f1128fc5f91fb9830020503385e356ca2a5543e13006",
+    "mortality.py": "a4ce99e72be655370d62384508e2b1b2e9d6692b118836c68b6232e00bc5de52",
+    "movement.py": "cf4648867f502ae36d3e259dda02432d550520e3ca29600f2d865624808ff19b",
+    "niche.py": "99617b7624f633f79b2007a6c12aaac95514b84d78ee04b120d523ef6640a922",
+    "physiology.py": "95fe9752308f327e1740544bc641837e54da3cf6ff1c6b99eb1ef853a9f8e751",
+    "reproduction.py": "4ec74adafd61d189cfaabe4590fc4818d14bd4e4df43b96204d725105bf53bc0",
+    "resources.py": "e59d2a556e43c1d5573a75e1e3b00750d0c3096a25daf20377624da73c003e6c",
+    "selection.py": "18486bb79a3d905768bb0d8169e3c81066b598157dfa89248f6cf275f2e70e73",
+    "speciation.py": "ebf04da653d6dbbf62cbe37a58259513ba198fe1daa217eca8ce6918b3861afe",
+    "speciation_commit.py": "4400995eb9ca82c84d064d5f053ebbe8429406d9b72ba45da97f7a749ee51996",
+    "topology.py": "0ddc27e725d057a3bc41715886f01ffcbc36ed8a2eebd79bcaddb7c6060888c9",
+    "world.py": "9d7fcfc2b0ff27f216f3db71be8f05eeaa63c1dee369475067ccd20a60db8c0a"
+  }
+}

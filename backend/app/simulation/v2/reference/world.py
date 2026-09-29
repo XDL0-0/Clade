@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from ..context import WorldSnapshot
+from ..numerics import isolated_numerics
 from ..seed import SeedManager
 from ..values import FrozenArray, JsonValue, freeze_mapping, natural
 from ..version import WorldVersion
@@ -117,6 +118,7 @@ DEFAULT_SPECIES = (
 )
 
 
+@isolated_numerics
 def create_reference_snapshot(
     version: WorldVersion,
     *,
@@ -149,6 +151,7 @@ def create_reference_snapshot(
     has_lifecycle = isinstance(stage_versions, Mapping) and "reference_extinction" in stage_versions
     has_selection = isinstance(stage_versions, Mapping) and "reference_selection" in stage_versions
     has_genetics = isinstance(stage_versions, Mapping) and "reference_mutation" in stage_versions
+    has_feedback = isinstance(stage_versions, Mapping) and "reference_niche" in stage_versions
     rng = SeedManager(seed, "reference-genesis", 0)
     terrain = rng.stream("genesis", "1", purpose="terrain")
     phase = terrain.uniform(0) * 2 * math.pi
@@ -286,4 +289,6 @@ def create_reference_snapshot(
             np.full(population.shape, -1, dtype=np.int64)
         )
         arrays["isolation_age"] = FrozenArray.from_numpy(np.zeros(population.shape, dtype=np.int64))
+    if has_feedback:
+        arrays["habitat_complexity"] = FrozenArray.from_numpy(np.zeros(tiles, dtype=np.float64))
     return WorldSnapshot(version, 0, state, arrays, manifest)

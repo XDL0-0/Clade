@@ -13,7 +13,7 @@ from app.simulation.v2.context import TurnContext
 from app.simulation.v2.engine import SimulationEngineV2, TurnCommand
 from app.simulation.v2.reference.common import number
 from app.simulation.v2.reference.diversity import deme_diversity
-from app.simulation.v2.reference.model import evolution_pipeline
+from app.simulation.v2.reference.model import evolution_pipeline, feedback_pipeline
 from app.simulation.v2.reference.world import MODEL_ID, TRAITS, create_reference_snapshot
 from app.simulation.v2.values import FrozenArray
 from app.simulation.v2.version import WorldVersion
@@ -22,9 +22,10 @@ from app.storage.store import WorldStore
 from scripts.benchmark_reference_ecology import organic_carbon
 
 
-def test_durable_evolution_replay_and_paired_fork(tmp_path: Path) -> None:
+@pytest.mark.parametrize("feedback", [False, True])
+def test_durable_evolution_replay_and_paired_fork(tmp_path: Path, feedback: bool) -> None:
     store = WorldStore(tmp_path / "evolution", checkpoint_interval=3)
-    pipeline = evolution_pipeline()
+    pipeline = feedback_pipeline() if feedback else evolution_pipeline()
     engine = SimulationEngineV2(store, pipeline, MODEL_ID)
     current = store.create(
         create_reference_snapshot(
@@ -49,7 +50,7 @@ def test_durable_evolution_replay_and_paired_fork(tmp_path: Path) -> None:
         command = TurnCommand(previous.version, f"turn-{turn}")
         current = engine.run_turn(command)
         profile = ObservationReader(store.db).profile(current.version)
-        assert len(profile) == 26
+        assert len(profile) == (28 if feedback else 26)
         flux = 0.0
         for stage in profile:
             metrics = stage["metrics"]

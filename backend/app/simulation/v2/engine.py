@@ -10,6 +10,7 @@ from app.storage.store import WorldStore
 
 from .context import TurnContext, WorldSnapshot
 from .events import WorldEvent
+from .numerics import isolated_numerics
 from .pipeline import DeterministicPipeline
 from .values import JsonValue, freeze, freeze_mapping
 from .version import WorldVersion
@@ -83,6 +84,7 @@ class SimulationEngineV2:
             }
         )
 
+    @isolated_numerics
     def run_turn(self, command: TurnCommand) -> WorldSnapshot:
         if not isinstance(command, TurnCommand):
             raise TypeError("run_turn requires an immutable TurnCommand")

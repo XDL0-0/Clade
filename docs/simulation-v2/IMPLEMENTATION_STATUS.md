@@ -12,13 +12,13 @@
 | Foundation | 已通过 | TurnContext / StageResult / WorldEvent / WorldVersion / SeedManager |
 | Async Safety | 新路径合同/持久任务已通过，旧AI写者逐Stage迁移 | 运行协调、AIJob、幂等、版本/lease、stale拒绝 |
 | Persistence | 核心存储与旧档导入已通过 | checkpoint/delta、原子提交、timeline、replay、旧档导入 |
-| Environment / Resources | 开始气候标量等价提取 | 气候/地质/水文/biome、NPP与资源再生 |
-| Ecology / Movement / Population | 待迁移 | 动态K、竞争/捕食/疾病、守恒迁移、死亡与繁殖ledger |
-| Evolution / Speciation | 待迁移 | 压力/梯度/代价/变异/漂变/基因流、分化与灭绝生命周期 |
-| Explainability / Emergence | 待实施 | EvolutionTrace、因果历史、niche construction、coevolution |
-| Player Experience | 待实施 | 事件驱动数据层、时间机、并行实验、历史地图/形态/情景编辑 |
+| Environment / Resources | CPU参考模型通过，旧气候/资源oracle通过 | 气候/地质/水文/biome、NPP与资源再生；不是旧GPU整链数值等价 |
+| Ecology / Movement / Population | CPU参考模型通过 | 动态K、竞争/捕食、守恒迁移、死亡与繁殖ledger；疾病仅有密度压力接口 |
+| Evolution / Speciation | 26stage参考配方通过 | 压力/梯度/代价/变异/漂变/基因流、条件分化与灭绝；默认长测未自然分化 |
+| Explainability / Emergence | Trace/28stage生态反馈已通过 | 数值原因与化石已实现；协同演化机制不等于已证明长期军备竞赛 |
+| Player Experience | 实验室接入与逐项验收中 | 事件驱动数据层、时间机、分支对比；批量实验/情景编辑继续推进 |
 | Ecosystem / Legacy removal | 待实施 | scenario/mod/stage SDK、权限与兼容、最后移除legacy |
-| Long-run acceptance | 待执行 | mock AI 100/500/1000 turn、性能/内存/save增长、replay一致 |
+| Long-run acceptance | 17/26/28stage均完成1000turn | mock AI 100/500/1000 turn；单seed证据不等于生态标定或所有规模稳定 |
 
 ## B1 — 前端合同与检查基线
 
@@ -154,3 +154,15 @@
 - Known issues：默认1000turn未自然分化，仍发生多样性下降；不得声称物种涌现/长期营养级平衡已经完成。Deme均值不是个体基因型，基因流与fitness是已注明的近似；新遗传数组增加每turn差量体积；固定slot满时延期分化。真实LLM接线、生态工程、适应性精度与Mod/Scenario仍待后续。
 - Save compatibility：所有旧JSON/gzip兼容回归仍通过；已存17/20stage历史可重建；新26stage world明确新manifest，不把缺基因的旧档静默升级。AI模板完成不会改数值hash。
 - Next：V2 API与实验室界面验收；事件驱动叙事job接线；再逐项加入生态反馈/协同演化和实验调度，不删除仍承担默认旧游戏的legacy路径。
+
+## Step 7a — 生态工程与真实相互选择反馈
+
+- New files：reference/{physiology,feedback,niche}.py；tests/v2/{test_reference_feedback,test_reference_niche,test_evolution_golden}.py；FEEDBACK_MODEL.md与两份反馈证据JSON。
+- Changed files：ecology/feeding/fitness提取共享响应并保留旧默认参数；model/world显式28stage配方及habitat_complexity；benchmark支持--feedback；整链tests参数化旧26/新28。Removed legacy code：无。
+- 实现：冠层局部降温、储备支付土壤/水生栖息结构工程、养分回收、结构影响真实捕食；猎物群体防御与捕食者合作进入同一实际捕食/梯度函数；温湿度死亡hazard和工程代价进入fitness。不是预设回合触发升级。
+- Tests added/passed：反馈机制10、生态工程56（含7项精度修复回归）、旧配方100turn golden1、26/28整链3；独立检查两次28stage seed8 100turn逐turn hash一致，旧26stage seed8此前100个hash全保留，另256seed实际捕杀统计和独立七轴差分通过。单独定向与整链结果见本批命令记录；下一批共享全量汇总避免重复计数。
+- 每步查看：第一次1000turn在turn574拒绝0.465 ULP的养分舍入，保留失败前checkpoint并精确复现。采用局部ULP与2^-40单位上界，微量无法成套登记时撤回支出及环境收益；仍拒绝大库存吞有效flux。574–650完整续算与重演通过，再从genesis重跑1000turn通过。
+- Performance impact：seed37、8×4/16slots、checkpoint25，100/500/1000turn人口12950/9944/6321，richness5/3/3；最大人口13630，累计捕杀240、迁移440180；最大C残差4.58e-12、N漂移4.55e-13。RSS58.89/59.06/59.19MB，存档12.10/52.87/101.59MB，末100turn median467.2ms（含存储、profile/校验及同期测试负载）。工程额外内存为tile结构数组，事件仅在显著变化时保留最多8个tile摘要。
+- Known issues：默认1000turn仍未观察自然分化，营养结构/长期多样性并未达到目标。区域公共环境收益不伪装成即时个体收益；fitness仍是固定密度代理。双向选择机制通过不代表自然军备竞赛已经被证实；无湖泊溢流、无存档GC等既有限制保留。
+- Save compatibility：新28stage manifest与17/20/26区分；旧26固定hash回归保持。旧JSON/gzip读写/导入的全量回归持续执行；未删除旧默认游戏路径。
+- Next：实验室HTTP/React Query/SSE、历史叙事与形态展示最终验收；不可变情景计划、可恢复并行实验；之后显式新配方验证自适应演化精度。

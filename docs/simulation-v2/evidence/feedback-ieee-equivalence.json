@@ -1,0 +1,21 @@
+{
+  "scope": "pure resimulation after IEEE host isolation and niche subnormal protection",
+  "checkpoints": [
+    {
+      "turn": 100,
+      "state_hash": "ee2ac5c98dc2d8ce7109c5adeda5daa4c2d2a93d5e64a638af9f0c7d519c6981",
+      "matches_durable_baseline": true
+    },
+    {
+      "turn": 500,
+      "state_hash": "e466872ef4487b13944dde7957d3d09247e9b28f3ccb4ce6fe421bcf7c9a1e79",
+      "matches_durable_baseline": true
+    },
+    {
+      "turn": 1000,
+      "state_hash": "acc79b20a0af8a6b907976ac32160ae23d981f124baf2546e9b795e4bcd1f157",
+      "matches_durable_baseline": true
+    }
+  ],
+  "elapsed_seconds": 97.34185845777392
+}

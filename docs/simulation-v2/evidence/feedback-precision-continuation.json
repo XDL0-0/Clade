@@ -1,0 +1,75 @@
+{
+  "seed": 37,
+  "stages": 28,
+  "first_input_turn": 573,
+  "final_turn": 650,
+  "input_hash": "9ef2ea8997c68445a41de94da03637a15d339eb3a87e0c7a6e6d8276a80ef46b",
+  "max_carbon_error": 3.709033080667723e-12,
+  "max_nutrient_inventory_error": 2.2737367544323206e-13,
+  "niche_nutrient_abs_residual_sum": 2.0044739716490345e-12,
+  "niche_nutrient_roundoff_budget_sum": 2.544456891705728e-11,
+  "niche_carbon_work_deferred_sum": 0.0,
+  "seconds": 6.908462694380432,
+  "checkpoints": [
+    {
+      "turn": 574,
+      "state_hash": "47f076c279b10f7a125d66b66057d3d8610a2f716af1a211ae510be66f3dba3f",
+      "niche": {
+        "carbon_ledger_max_abs_residual": 6.57677037829707e-15,
+        "carbon_respired": 0.025562323549372046,
+        "carbon_work_deferred": 0.0,
+        "ecological_years": 0.08333333333333333,
+        "habitat_complexity_delta": -0.00045801791135658917,
+        "ledger_roundoff_cap_per_transfer": 9.094947017729282e-13,
+        "max_abs_habitat_change": 0.00016534423352387861,
+        "nutrient_ledger_abs_residual": 1.9166895735080224e-14,
+        "nutrient_ledger_max_abs_residual": 3.3040235349372175e-15,
+        "nutrient_ledger_roundoff_budget": 5.206809097647281e-13,
+        "nutrient_recycled": 0.0005112464709924325,
+        "soil_quality_delta": -0.0024645585775847634,
+        "work_by_land": 0.011835188094570626,
+        "work_by_water": 0.01372713545480142
+      }
+    },
+    {
+      "turn": 600,
+      "state_hash": "91ce9efb2b27c5421114d97c29937faae2ff3e33fb60a1e010b2b033670662f3",
+      "niche": {
+        "carbon_ledger_max_abs_residual": 1.094859879841037e-14,
+        "carbon_respired": 0.018159852485488237,
+        "carbon_work_deferred": 0.0,
+        "ecological_years": 0.08333333333333333,
+        "habitat_complexity_delta": -0.000453007103784345,
+        "ledger_roundoff_cap_per_transfer": 9.094947017729282e-13,
+        "max_abs_habitat_change": 0.00016576972102733123,
+        "nutrient_ledger_abs_residual": 2.639666138834929e-14,
+        "nutrient_ledger_max_abs_residual": 3.4461323700804396e-15,
+        "nutrient_ledger_roundoff_budget": 3.892346442516015e-13,
+        "nutrient_recycled": 0.0003631970497037784,
+        "soil_quality_delta": -0.002454743366098744,
+        "work_by_land": 0.008926931306484143,
+        "work_by_water": 0.009232921179004094
+      }
+    },
+    {
+      "turn": 650,
+      "state_hash": "06196175b57ab896b069afdfce811b51fba364aed38e52cdaad7a39210e4f058",
+      "niche": {
+        "carbon_ledger_max_abs_residual": 6.991084685985249e-15,
+        "carbon_respired": 0.004781833543463954,
+        "carbon_work_deferred": 0.0,
+        "ecological_years": 0.08333333333333333,
+        "habitat_complexity_delta": -0.00043034394975122767,
+        "ledger_roundoff_cap_per_transfer": 9.094947017729282e-13,
+        "max_abs_habitat_change": 0.00016522606007213225,
+        "nutrient_ledger_abs_residual": 2.8332892440760898e-14,
+        "nutrient_ledger_max_abs_residual": 3.4816594729871267e-15,
+        "nutrient_ledger_roundoff_budget": 1.7229977097827033e-13,
+        "nutrient_recycled": 9.563667087064687e-05,
+        "soil_quality_delta": -0.0021133217450306496,
+        "work_by_land": 0.0026322148445059312,
+        "work_by_water": 0.0021496186989580224
+      }
+    }
+  ]
+}

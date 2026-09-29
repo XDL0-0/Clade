@@ -10,6 +10,7 @@ import numpy as np
 
 from .context import TurnContext, WorldSnapshot
 from .contracts import StateDelta
+from .numerics import isolated_numerics
 from .values import JsonValue, digest, freeze_mapping, thaw
 
 
@@ -117,6 +118,7 @@ def apply_delta(
     return candidate
 
 
+@isolated_numerics
 def validate_snapshot(snapshot: WorldSnapshot) -> None:
     for key, array in snapshot.arrays.items():
         values = array.numpy()

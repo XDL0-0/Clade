@@ -44,6 +44,8 @@ def _functional_response(
     prey_count: int,
     habitat: float,
     preference: float,
+    *,
+    defensive_groups: bool = False,
 ) -> float:
     """Holling II kills/predator/year; handling time bounds density response."""
     log_ratio = math.log(prey.mass) - math.log(predator.mass)
@@ -52,6 +54,8 @@ def _functional_response(
     speed = (1 + predator.traits["speed"]) / (1 + prey.traits["speed"])
     toxin = max(0.0, 1 + predator.traits["detox"] - prey.traits["toxin"])
     cooperation = 1 + predator.traits["cooperation"] * math.log1p(predator_count)
+    if defensive_groups:
+        cooperation /= 1 + 0.3 * prey.traits["cooperation"] * math.log1p(prey_count)
     encounter = 0.5 * size * attack * speed * toxin * cooperation * habitat * preference
     # Years per prey: fixed processing latency plus a body-mass-scaled meal.
     # V1 used >=0.5 year/prey, making the default predators' maximum assimilated
@@ -70,6 +74,10 @@ def _predate(
     appetite: FloatArray,
     intake: FloatArray,
     deaths: IntArray,
+    *,
+    version: str,
+    refuge: FloatArray | None,
+    defensive_groups: bool,
 ) -> tuple[float, float]:
     by_slot = {item.slot: item for item in data.species}
     predators = [item for item in data.species if item.role == "carnivore"]
@@ -82,7 +90,7 @@ def _predate(
             key=lambda item: (
                 context.seeds.stream(
                     "reference_feeding",
-                    FEEDING_VERSION,
+                    version,
                     entity=item.identity,
                     purpose="predator-rank",
                 ).uint64(tile),
@@ -103,7 +111,7 @@ def _predate(
                 key=lambda target: (
                     context.seeds.stream(
                         "reference_feeding",
-                        FEEDING_VERSION,
+                        version,
                         entity=digest((predator.identity, target[0].identity)),
                         purpose="prey-rank",
                     ).uint64(tile),
@@ -123,7 +131,17 @@ def _predate(
                     float(data.arrays["suitability"][predator.slot, tile]),
                     float(data.arrays["suitability"][prey.slot, tile]),
                 )
-                rate = _functional_response(predator, prey, count, remaining, habitat, preference)
+                if refuge is not None:
+                    habitat *= 1 - 0.5 * float(refuge[tile])
+                rate = _functional_response(
+                    predator,
+                    prey,
+                    count,
+                    remaining,
+                    habitat,
+                    preference,
+                    defensive_groups=defensive_groups,
+                )
                 expected = data.dt * count * rate
                 if not math.isfinite(expected):
                     raise ValueError("predation expected kills overflow")
@@ -132,7 +150,7 @@ def _predate(
                 whole = math.floor(expected)
                 stream = context.seeds.stream(
                     "reference_feeding",
-                    FEEDING_VERSION,
+                    version,
                     entity=digest((predator.identity, prey.identity)),
                     purpose="kill-rounding",
                 )
@@ -153,7 +171,15 @@ def _predate(
     return transferred_total, assimilated_total
 
 
-def run_feeding(context: TurnContext, data: EcologyInputs, name: str) -> StageResult:
+def run_feeding(
+    context: TurnContext,
+    data: EcologyInputs,
+    name: str,
+    *,
+    version: str = FEEDING_VERSION,
+    refuge: FloatArray | None = None,
+    defensive_groups: bool = False,
+) -> StageResult:
     """Proportional leaf sharing followed by non-cascading herbivore predation.
 
     Fractional expected kills use unbiased Bernoulli rounding, so intake can
@@ -162,6 +188,12 @@ def run_feeding(context: TurnContext, data: EcologyInputs, name: str) -> StageRe
     Decomposers already gained carbon in regeneration; their existing reserve
     measures energy adequacy here, with no second detritus uptake.
     """
+    if refuge is not None and (
+        refuge.shape != (data.population.shape[1],)
+        or not np.isfinite(refuge).all()
+        or np.any((refuge < 0) | (refuge > 1))
+    ):
+        raise ValueError("Habitat refuge must match finite tile values in [0,1]")
     reserve = data.reserve.copy()
     leaf = data.arrays["plant_biomass"].copy()
     detritus = data.arrays["detritus"].copy()
@@ -202,6 +234,9 @@ def run_feeding(context: TurnContext, data: EcologyInputs, name: str) -> StageRe
         appetite,
         intake,
         deaths,
+        version=version,
+        refuge=refuge,
+        defensive_groups=defensive_groups,
     )
     adequate = intake.copy()
     for item in data.species:

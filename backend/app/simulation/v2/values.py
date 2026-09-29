@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import struct
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -12,6 +13,8 @@ from typing import TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
+
+from .numerics import isolated_numerics
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonScalar | tuple["JsonValue", ...] | Mapping[str, "JsonValue"]
@@ -24,7 +27,10 @@ def freeze(value: object) -> JsonValue:
     if isinstance(value, float):
         if not math.isfinite(value):
             raise ValueError("JSON numbers must be finite")
-        return 0.0 if value == 0 else value
+        # Floating comparisons can treat denormals as zero when a legacy native
+        # library enabled DAZ. Classify signed zero from its bits instead.
+        bits = struct.unpack("<Q", struct.pack("<d", value))[0]
+        return 0.0 if bits & ((1 << 63) - 1) == 0 else value
     if isinstance(value, Mapping):
         if any(not isinstance(k, str) for k in value):
             raise TypeError("State keys must be strings")
@@ -49,6 +55,7 @@ def thaw(value: JsonValue) -> object:
     return value
 
 
+@isolated_numerics
 def canonical_bytes(value: object) -> bytes:
     return json.dumps(
         thaw(freeze(value)),
@@ -76,6 +83,7 @@ class FrozenArray:
     shape: tuple[int, ...]
     data: bytes
 
+    @isolated_numerics
     def __post_init__(self) -> None:
         dtype = np.dtype(self.dtype)
         if dtype.kind not in "biuf" or dtype.fields is not None:

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import cast
 
 from app.simulation.v2.context import WorldSnapshot
+from app.simulation.v2.numerics import isolated_numerics
 from app.simulation.v2.values import JsonValue, canonical_bytes, digest, freeze_mapping, thaw
 from app.simulation.v2.version import WorldVersion
 
@@ -18,6 +19,7 @@ def encode(value: object) -> str:
     return canonical_bytes(value).decode("utf-8")
 
 
+@isolated_numerics
 def decode(value: str) -> Mapping[str, JsonValue]:
     try:
         return freeze_mapping(json.loads(value))

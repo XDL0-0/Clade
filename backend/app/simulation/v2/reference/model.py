@@ -84,3 +84,30 @@ def evolution_pipeline() -> DeterministicPipeline:
             MetricsStage(after="reference_extinction", genetics=True),
         ]
     )
+
+
+def feedback_pipeline() -> DeterministicPipeline:
+    """Versioned ecological engineering and real physiological selection feedback."""
+    from dataclasses import replace
+
+    from .extinction import ExtinctionStage
+    from .feedback import EnvironmentalFitnessStage, FeedbackFeedingStage
+    from .niche import MicroclimateStage, NicheConstructionStage
+
+    stages = []
+    for stage in evolution_pipeline().stages:
+        name = stage.contract.name
+        if name == "reference_geology":
+            stage.contract = replace(stage.contract, dependencies=("reference_microclimate",))
+        elif name == "reference_feeding":
+            stage = FeedbackFeedingStage()
+        elif name == "reference_fitness":
+            stage = EnvironmentalFitnessStage()
+        elif name == "reference_extinction":
+            stage = ExtinctionStage(after="reference_niche")
+        stages.append(stage)
+        if name == "reference_climate":
+            stages.append(MicroclimateStage())
+        elif name == "reference_speciation":
+            stages.append(NicheConstructionStage())
+    return DeterministicPipeline(stages)

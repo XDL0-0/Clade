@@ -8,6 +8,7 @@ from time import perf_counter
 
 from .context import TurnContext
 from .contracts import SimulationStage
+from .numerics import isolated_numerics
 from .reducer import apply_delta, covers, restrict, validate_snapshot
 
 
@@ -62,6 +63,7 @@ class DeterministicPipeline:
                 pending.remove(stage)
         self.stages = tuple(ordered)
 
+    @isolated_numerics
     def execute(self, context: TurnContext) -> TurnContext:
         if context.errors:
             raise ValueError(f"Cannot execute an invalid context: {context.errors}")
