@@ -277,11 +277,13 @@ class SimulationEngine:
             self._init_pipeline("standard")
         
         # 获取 UI 配置
+        from ..core.config import get_settings
         from ..core.config_service import ConfigService
         try:
-            config_service = ConfigService()
+            config_service = ConfigService(get_settings())
             ui_config = config_service.get_ui_config()
-        except Exception:
+        except Exception as exc:
+            logger.warning("[Pipeline] 读取 UI 配置失败 (%s)，使用默认回合配置", type(exc).__name__)
             ui_config = None
         
         # 创建上下文

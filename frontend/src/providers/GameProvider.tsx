@@ -125,13 +125,12 @@ export function GameProvider({ children, viewMode, onViewModeChange }: GameProvi
     return map;
   }, [previousReport]);
 
-  // 合并物种列表（报告 + 实时）
-  // 【修复】用 freshSpeciesList 中的数据覆盖 reportSpecies 中的同名物种
+  // 简要列表提供实时身份、状态和种群数量；回合报告提供本回合的解释数据。
   const speciesList = useMemo(() => {
     const reportSpecies = latestReport?.species || [];
     if (freshSpeciesList.length === 0) return reportSpecies;
 
-    // 使用 Map 确保唯一性，freshSpeciesList 优先（更新的数据）
+    // 保留未出现在实时列表中的历史物种，也兼容尚无报告的新物种。
     const speciesMap = new Map<string, SpeciesSnapshot>();
     
     // 先添加报告中的数据
@@ -139,9 +138,19 @@ export function GameProvider({ children, viewMode, onViewModeChange }: GameProvi
       speciesMap.set(s.lineage_code, s);
     }
     
-    // 用实时数据覆盖（freshSpeciesList 是最新的）
+    // 只覆盖 /species/list 实际返回的字段，不能让转换时补出的 0 和 []
+    // 清掉报告里的死亡、出生、压力、叙事、地块分布和生态拟真数据。
     for (const s of freshSpeciesList) {
-      speciesMap.set(s.lineage_code, s);
+      const reportSnapshot = speciesMap.get(s.lineage_code);
+      speciesMap.set(s.lineage_code, reportSnapshot ? {
+        ...reportSnapshot,
+        lineage_code: s.lineage_code,
+        latin_name: s.latin_name,
+        common_name: s.common_name,
+        population: s.population,
+        ecological_role: s.ecological_role,
+        status: s.status,
+      } : s);
     }
 
     return Array.from(speciesMap.values());
@@ -161,6 +170,7 @@ export function GameProvider({ children, viewMode, onViewModeChange }: GameProvi
   const refreshSpeciesList = useCallback(async () => {
     try {
       const list = await fetchSpeciesList();
+      // 以下统计默认值仅用于尚无回合快照的物种，不能作为新的回合统计。
       const snapshots: SpeciesSnapshot[] = list.map((item) => ({
         lineage_code: item.lineage_code,
         latin_name: item.latin_name,

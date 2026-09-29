@@ -1,0 +1,24 @@
+.classic-batch-controls {
+  padding: 14px 18px;
+  margin: 0 0 18px;
+  border: 1px solid #70bba544;
+  border-radius: 12px;
+  background: #0c292399;
+  text-align: center;
+}
+.classic-batch-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid #77c6af80;
+  border-radius: 8px;
+  background: #154b3d;
+  color: #effaf6;
+  cursor: pointer;
+  font: inherit;
+}
+.classic-batch-controls button:disabled { opacity: .6; cursor: default; }
+.classic-batch-controls button:focus-visible { outline: 2px solid #a2e2c9; outline-offset: 3px; }
+.classic-batch-controls p { margin: 10px 0 0; color: #b3cfc3; font-size: 12px; }

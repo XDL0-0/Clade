@@ -125,21 +125,20 @@ class ServiceContainer(
     def _perform_initial_reset(self) -> None:
         """执行初始重置流程（模拟 create_save 的部分逻辑）"""
         try:
+            # 经典阶段使用这两个模块单例；它们不是容器的服务属性。
+            from ..services.species.habitat_manager import habitat_manager
+            from ..services.species.dispersal_engine import dispersal_engine
+
             # 1. 清空可能存在的残留数据
             logger.info("[容器] 自动初始化：清理环境...")
             self.migration_advisor.clear_all_caches()
-            self.habitat_manager.clear_all_caches()
-            self.dispersal_engine.clear_caches()
+            habitat_manager.clear_all_caches()
+            dispersal_engine.clear_caches()
             
             self.simulation_engine.speciation.clear_all_caches()
             self.embedding_integration.clear_all_caches()
             
-            # 【新增】重置 ModelRouter 到初始状态（清除可能残留的配置）
-            # 避免之前运行时的配置污染新会话
-            if "model_router" in self.__dict__:
-                # 重新触发 cached_property 的初始化逻辑
-                del self.__dict__["model_router"]
-                logger.info("[容器] ModelRouter 已重置为默认状态")
+            # 保留已按 UI 配置初始化的路由，确保所有服务继续共享同一实例。
             
             # 2. 确保地图已生成（已有 ensure_initialized，这里再次确认或重新生成）
             # 注意：如果想强制重新生成地图，可以调用 map_manager.regenerate()

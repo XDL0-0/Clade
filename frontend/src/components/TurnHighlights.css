@@ -1,0 +1,105 @@
+.turn-highlights {
+  margin-bottom: 32px;
+  color: #e2e8f0;
+}
+
+.turn-highlights h3 {
+  margin: 0 0 10px;
+  color: #7dd3fc;
+  font-size: 1.3rem;
+}
+
+.turn-highlights-note,
+.turn-highlights-empty {
+  color: #aebbd0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.turn-highlights-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.turn-highlight {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  overflow-wrap: anywhere;
+}
+
+.turn-highlight-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.turn-highlight-heading h4 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  color: #f1f5f9;
+}
+
+.turn-highlight-code {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.turn-highlight-heading button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd;
+  cursor: pointer;
+}
+
+.turn-highlight-heading button:hover {
+  background: rgba(14, 165, 233, 0.25);
+}
+
+.turn-highlight-heading button:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 3px;
+}
+
+.turn-highlight-change {
+  margin-top: 14px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.turn-highlight-change.declining { color: #fda4af; }
+.turn-highlight-change.growing { color: #6ee7b7; }
+
+.turn-highlight-population,
+.turn-highlight-risk {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.turn-highlight-population { color: #cbd5e1; }
+.turn-highlight-risk { color: #fcd34d; }
+
+.turn-highlight-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+  .turn-highlights-list { grid-template-columns: minmax(0, 1fr); }
+  .turn-highlight { padding: 12px; }
+}

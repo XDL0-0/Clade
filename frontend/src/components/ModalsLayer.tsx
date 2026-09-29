@@ -38,6 +38,8 @@ const GenealogyView = lazy(() => import("./GenealogyView").then(m => ({ default:
 const NicheCompareView = lazy(() => import("./NicheCompareView").then(m => ({ default: m.NicheCompareView })));
 const FoodWebGraph = lazy(() => import("./FoodWebGraph").then(m => ({ default: m.FoodWebGraph })));
 const FullscreenOverlay = lazy(() => import("./FullscreenOverlay").then(m => ({ default: m.FullscreenOverlay })));
+import { BatchEvolutionControls } from "./BatchEvolutionControls";
+
 const TurnProgressOverlay = lazy(() => import("./TurnProgressOverlay").then(m => ({ default: m.TurnProgressOverlay })));
 const GameHintsPanel = lazy(() => import("./GameHintsPanel").then(m => ({ default: m.GameHintsPanel })));
 const AchievementNotification = lazy(() => import("./GameHintsPanel").then(m => ({ default: m.AchievementNotification })));
@@ -89,6 +91,8 @@ interface ModalsLayerProps {
   loading: boolean;
   error: string | null;
   batchProgress: { current: number; total: number; message: string } | null;
+  pauseRequested?: boolean;
+  onPauseAfterTurn?: () => void;
   
   // 数据
   reports: TurnReport[];
@@ -129,6 +133,8 @@ export function ModalsLayer({
   loading,
   error,
   batchProgress,
+  pauseRequested = false,
+  onPauseAfterTurn,
   reports,
   speciesList,
   lineageTree,
@@ -217,6 +223,9 @@ export function ModalsLayer({
               : "AI 正在分析生态系统变化..."
           }
           showDetails={!batchProgress}
+          batchControls={batchProgress && onPauseAfterTurn
+            ? <BatchEvolutionControls requested={pauseRequested} onPause={onPauseAfterTurn} />
+            : null}
         />
       )}
 
@@ -226,6 +235,10 @@ export function ModalsLayer({
           report={latestReport}
           previousReport={previousReport}
           onClose={() => onCloseModal("turnSummary")}
+          onSelectSpecies={(code) => {
+            onCloseModal("turnSummary");
+            onSelectSpecies(code);
+          }}
         />
       )}
 
@@ -384,4 +397,3 @@ export function ModalsLayer({
     </Suspense>
   );
 }
-

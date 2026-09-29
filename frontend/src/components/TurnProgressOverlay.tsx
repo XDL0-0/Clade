@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { connectToEventStream, abortCurrentTasks, skipCurrentAIStep } from "@/services/api";
 
 interface Props {
   message?: string;
   showDetails?: boolean;
+  batchControls?: ReactNode;
 }
 
 // 连接状态类型
@@ -78,7 +79,7 @@ interface CompletedStage {
   timestamp: number;
 }
 
-export function TurnProgressOverlay({ message = "推演进行中...", showDetails = true }: Props) {
+export function TurnProgressOverlay({ message = "推演进行中...", showDetails = true, batchControls }: Props) {
   // 状态管理
   const [displayedLogs, setDisplayedLogs] = useState<Array<{ icon: string; text: string; category: string; timestamp: number }>>([]);
   const [currentStage, setCurrentStage] = useState<string>("等待推演开始...");
@@ -739,6 +740,7 @@ export function TurnProgressOverlay({ message = "推演进行中...", showDetail
             </div>
           </div>
 
+          {batchControls}
           {showDetails && (
             <>
               {/* 进度阶段可视化 - 动态显示已完成和当前阶段 */}
@@ -2025,5 +2027,4 @@ function getCategoryColor(category: string): string {
   };
   return colors[category] || colors["其他"];
 }
-
 

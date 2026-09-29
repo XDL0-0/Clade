@@ -3,72 +3,55 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { EcologicalRealismSummary } from "./EcologicalRealismSummary";
+import { TurnHighlights } from "./TurnHighlights";
 
 interface Props {
   report: TurnReport;
   previousReport: TurnReport | null;
   onClose: () => void;
+  onSelectSpecies?: (code: string) => void;
 }
 
-export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
+export function TurnSummaryModal({ report, previousReport, onClose, onSelectSpecies }: Props) {
   const [expandedSection, setExpandedSection] = useState<string | null>("overview");
+  const consecutivePrevious = previousReport?.turn_index === report.turn_index - 1
+    ? previousReport
+    : null;
   
   // 从 report.species 中直接获取物种统计（后端已返回完整族谱数据）
   const currentAliveCount = report.species.filter(s => s.status === "alive").length;
-  const extinctSpecies = report.species.filter(s => s.status === "extinct");
-  
-  // 新增物种数 = 本回合分化事件数量
-  const newSpeciesCount = report.branching_events.length;
+  // 多条分化记录可能指向同一新谱系，只计不同的新物种。
+  const newSpeciesCount = new Set(report.branching_events.map(event => event.new_lineage).filter(Boolean)).size;
   
   // 计算上回合存活物种数
-  const previousAliveCount = previousReport 
-    ? previousReport.species.filter(s => s.status === "alive").length 
+  const previousAliveCount = consecutivePrevious
+    ? consecutivePrevious.species.filter(s => s.status === "alive").length
     : 0;
   
   // 本回合灭绝的物种（在当前报告中灭绝，但在上一回合还存活的）
   const extinctThisTurn = report.species.filter(s => 
     s.status === "extinct" && 
-    (!previousReport || !previousReport.species.find(ps => ps.lineage_code === s.lineage_code && ps.status === "extinct"))
+    consecutivePrevious?.species.some(ps => ps.lineage_code === s.lineage_code && ps.status === "alive")
   );
   
   // 物种变化 = 当前存活数 - 上回合存活数
-  const speciesChange = previousReport 
+  const speciesChange = consecutivePrevious
     ? currentAliveCount - previousAliveCount 
-    : currentAliveCount;
+    : 0;
   
   const newSpecies = newSpeciesCount;
   
-  // 调试日志
-  console.log("[回合总结] 物种统计:", {
-    currentAliveCount,
-    extinctCount: extinctSpecies.length,
-    newSpeciesCount,
-    previousAliveCount,
-    speciesChange,
-    totalSpeciesInReport: report.species.length,
-  });
-  
-  // 计算总生物量变化
-  const currentBiomass = report.species.reduce((sum, s) => sum + (s.population || 0), 0);
-  const previousBiomass = previousReport 
-    ? previousReport.species.reduce((sum, s) => sum + (s.population || 0), 0) 
+  // population 是种群个体数量，不是质量意义上的生物量。
+  const currentPopulation = report.species.reduce((sum, s) => sum + (s.population || 0), 0);
+  const previousPopulation = consecutivePrevious
+    ? consecutivePrevious.species.reduce((sum, s) => sum + (s.population || 0), 0)
     : 0;
-  const biomassChange = currentBiomass - previousBiomass;
+  const populationChange = currentPopulation - previousPopulation;
   
   // 计算百分比变化
-  const biomassChangePercent = previousBiomass > 0 
-    ? ((biomassChange / previousBiomass) * 100).toFixed(1)
+  const populationChangePercent = previousPopulation > 0
+    ? ((populationChange / previousPopulation) * 100).toFixed(1)
     : "0";
-  
-  // Debug log
-  console.log("[回合总结] 生物量:", { 
-    current: currentBiomass, 
-    previous: previousBiomass, 
-    change: biomassChange,
-    percent: biomassChangePercent,
-    hasPrevReport: !!previousReport,
-    prevSpeciesCount: previousReport?.species?.length || 0
-  });
   
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -190,9 +173,9 @@ export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
                   color={speciesChange > 0 ? "#10b981" : speciesChange < 0 ? "#ef4444" : "#3b82f6"}
                 />
                 <StatCard
-                  label="灭绝物种"
-                  value={extinctThisTurn.length}
-                  change={extinctThisTurn.length > 0 ? "本回合灭绝" : null}
+                  label="本回合灭绝"
+                  value={consecutivePrevious ? extinctThisTurn.length : "未确认"}
+                  change={consecutivePrevious ? "与上一回合存活物种对照" : "缺少连续的上一回合记录"}
                   icon="💀"
                   color="#ef4444"
                 />
@@ -204,13 +187,13 @@ export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
                   color="#10b981"
                 />
                 <StatCard
-                  label="总规模"
-                  value={`${(currentBiomass / 1000).toFixed(1)}K`}
+                  label="种群总数量"
+                  value={currentPopulation.toLocaleString("zh-CN")}
                   change={
-                    !previousReport ? "首回合" :
-                    previousBiomass === 0 ? "从0增长" :
-                    biomassChange > 0 ? `+${biomassChangePercent}%` : 
-                    biomassChange < 0 ? `${biomassChangePercent}%` : 
+                    !consecutivePrevious ? "缺少连续的上一回合记录" :
+                    previousPopulation === 0 ? (currentPopulation > 0 ? "从0增长" : "持平") :
+                    populationChange > 0 ? `+${populationChangePercent}%` :
+                    populationChange < 0 ? `${populationChangePercent}%` :
                     "持平"
                   }
                   icon="⚖️"
@@ -218,6 +201,8 @@ export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
               </div>
             )}
           </section>
+
+          <TurnHighlights report={report} previousReport={consecutivePrevious} onSelectSpecies={onSelectSpecies} />
           
           {/* 生态拟真统计 */}
           {report.ecological_realism && (
@@ -342,7 +327,7 @@ export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
           )}
           
           {/* 重大事件 */}
-          {(report.major_events.length > 0 || report.branching_events.length > 0 || extinctSpecies.length > 0) && (
+          {(report.major_events.length > 0 || report.branching_events.length > 0 || extinctThisTurn.length > 0) && (
             <section style={{ marginBottom: "32px" }}>
               <h3 
                 style={{
@@ -384,7 +369,7 @@ export function TurnSummaryModal({ report, previousReport, onClose }: Props) {
                   ))}
                   
                   {/* 物种灭绝 */}
-                  {extinctSpecies.map((species, idx) => (
+                  {extinctThisTurn.map((species, idx) => (
                     <EventCard
                       key={`extinct-${idx}`}
                       icon="💀"
@@ -607,4 +592,3 @@ function getMapChangeIcon(changeType: string | undefined): string {
   };
   return icons[changeType] || "🌍";
 }
-

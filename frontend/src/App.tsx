@@ -21,6 +21,7 @@ import "./layout.css";
 import { SessionProvider, useSession } from "./providers/SessionProvider";
 import { GameProvider, useGame } from "./providers/GameProvider";
 import { UIProvider, useUI } from "./providers/UIProvider";
+import { useClassicTurnActions } from "./hooks/useClassicTurnActions";
 
 // Layout 组件
 import { GameLayout } from "./components/layout/GameLayout";
@@ -45,14 +46,13 @@ const ModalsLayer = lazy(() => import("./components/ModalsLayer").then(m => ({ d
 
 // API（使用模块化 API）
 import {
-  runTurn,
   saveGame,
   fetchHistory,
   fetchGameState,
   addQueue,
 } from "@/services/api";
 import { dispatchEnergyChanged } from "@/components/EnergyBar";
-import type { PressureDraft, TurnReport } from "@/services/api.types";
+import type { PressureDraft } from "@/services/api.types";
 
 // ============ 加载场景 ============
 function LoadingScene() {
@@ -71,7 +71,7 @@ function LoadingScene() {
       }}
     >
       <div className="spinner" style={{ width: 40, height: 40 }} />
-      <p style={{ fontSize: "1.1rem", opacity: 0.8 }}>正在验证游戏状态...</p>
+      <p style={{ fontSize: "1.1rem", opacity: 0.8 }}>正在读取游戏存档...</p>
     </div>
   );
 }
@@ -222,32 +222,24 @@ function GameScene() {
     [selectSpecies]
   );
 
-  // 执行回合
-  const executeTurn = useCallback(
-    async (drafts: PressureDraft[], rounds = 1) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const next = await runTurn(drafts, rounds);
-        addReports(next);
-        if (next.length > 0) {
-          const latest = next[next.length - 1];
-          setCurrentTurnIndex(latest.turn_index + 1);
-          openModal("turnSummary");
-          dispatchEnergyChanged();
-        }
-        await Promise.all([refreshMap(), refreshSpeciesList(), refreshQueue()].map((p) => p.catch(console.warn)));
-        invalidateLineage();
-        closeModal("pressure");
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "未知错误";
-        setError(`推演失败: ${message}`);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [addReports, setCurrentTurnIndex, openModal, refreshMap, refreshSpeciesList, refreshQueue, invalidateLineage, closeModal, setLoading, setError]
-  );
+  const {
+    executeTurn,
+    executeBatch: handleBatchExecute,
+    pauseRequested,
+    pauseAfterTurn,
+  } = useClassicTurnActions({
+    addReports,
+    setCurrentTurnIndex,
+    setLoading,
+    setError,
+    setBatchProgress,
+    refreshMap,
+    refreshSpeciesList,
+    refreshQueue,
+    invalidateLineage,
+    closePressure: () => closeModal("pressure"),
+    openSummary: () => openModal("turnSummary"),
+  });
 
   // 队列添加
   const handleQueueAdd = useCallback(
@@ -258,52 +250,6 @@ function GameScene() {
       closeModal("pressure");
     },
     [refreshQueue, closeModal]
-  );
-
-  // 批量执行回合（自动演化）
-  const handleBatchExecute = useCallback(
-    async (rounds: number, pressures: PressureDraft[], _randomEnergy: number) => {
-      if (rounds <= 0) return;
-      
-      setLoading(true);
-      setError(null);
-      closeModal("pressure");
-      
-      try {
-        const allReports: TurnReport[] = [];
-        
-        for (let i = 0; i < rounds; i++) {
-          setBatchProgress({ current: i + 1, total: rounds, message: `正在演化第 ${i + 1}/${rounds} 回合...` });
-          
-          // 如果没有指定压力，使用空数组（自然演化）
-          // 【优化】批量执行时不生成详细报告，提高性能
-          const next = await runTurn(pressures.length > 0 ? pressures : [], 1, false);
-          allReports.push(...next);
-          
-          if (next.length > 0) {
-            const latest = next[next.length - 1];
-            setCurrentTurnIndex(latest.turn_index + 1);
-          }
-        }
-        
-        // 批量完成后添加所有报告
-        if (allReports.length > 0) {
-          addReports(allReports);
-          openModal("turnSummary");
-          dispatchEnergyChanged();
-        }
-        
-        await Promise.all([refreshMap(), refreshSpeciesList(), refreshQueue()].map((p) => p.catch(console.warn)));
-        invalidateLineage();
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "未知错误";
-        setError(`批量演化失败: ${message}`);
-      } finally {
-        setLoading(false);
-        setBatchProgress(null);
-      }
-    },
-    [addReports, setCurrentTurnIndex, openModal, refreshMap, refreshSpeciesList, refreshQueue, invalidateLineage, closeModal, setLoading, setError, setBatchProgress]
   );
 
   // 快捷键
@@ -505,7 +451,7 @@ function GameScene() {
           ) : null
         }
         modals={
-          hasActiveModal ? (
+          (hasActiveModal || loading || error) ? (
             <Suspense fallback={<div className="spinner" style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }} />}>
               <ModalsLayer
                 modals={modals}
@@ -513,6 +459,8 @@ function GameScene() {
                 loading={loading}
                 error={error}
                 batchProgress={batchProgress}
+                pauseRequested={pauseRequested}
+                onPauseAfterTurn={pauseAfterTurn}
                 reports={reports}
                 speciesList={speciesList}
                 lineageTree={lineageTree}
