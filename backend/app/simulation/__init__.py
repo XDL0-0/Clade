@@ -1,149 +1,113 @@
-"""
-Simulation Package - 模拟引擎核心模块
+"""Simulation exports, loaded on demand so pure v2 imports do not initialize GPUs.
 
-该包包含模拟引擎的核心组件：
-- engine: SimulationEngine 主调度器（瘦中枢架构）
-- legacy_engine: LegacyTurnRunner 遗留实现（仅用于回归测试）
-- context: SimulationContext 回合上下文
-- stages: 流水线阶段定义
-- pipeline: 流水线执行器
-- stage_config: 阶段配置和注册表
-- plugin_stages: 插件阶段示例
-- regression_test: 回归测试框架
-- snapshot: 快照与回滚系统
-- logging_config: 日志配置与标签化
-- cli: 命令行接口
-- species: 死亡率引擎
-- tile_based_mortality: 地块级死亡率引擎
-- environment: 环境系统
-
-架构说明：
-- SimulationEngine 统一使用 Pipeline 执行回合逻辑
-- 旧版手写逻辑已迁移到 LegacyTurnRunner（仅用于回归测试）
-- 新业务应以 Stage 或 Service 形式加入
+Legacy convenience imports remain supported; explicit StageLoader/registry access
+also registers the bundled example plugins. Numerical execution loads its backend.
 """
 
-from .context import SimulationContext
-from .engine import SimulationEngine
-from .legacy_engine import LegacyTurnRunner
-from .pipeline import (
-    Pipeline,
-    PipelineBuilder,
-    PipelineConfig,
-    PipelineResult,
-    PipelineMetrics,
-    StageMetrics,
-)
-from .stage_config import (
-    StageConfig,
-    PipelineStageConfig,
-    StageRegistry,
-    stage_registry,
-    register_stage,
-    load_stage_config_from_yaml,
-    get_mode_description,
-    get_mode_parameters,
-    load_mode_with_parameters,
-    ModeParameters,
-    AVAILABLE_MODES,
-    StageLoader,
-)
-from .stages import (
-    Stage,
-    BaseStage,
-    StageOrder,
-    StageResult,
-    StageDependency,
-    StageDependencyValidator,
-    DependencyError,
-    get_default_stages,
-    # 核心阶段
-    InitStage,
-    ParsePressuresStage,
-    MapEvolutionStage,
-    TectonicMovementStage,
-    FetchSpeciesStage,
-    FoodWebStage,
-    TieringAndNicheStage,
-    PreliminaryMortalityStage,
-    PostMigrationNicheStage,
-    FinalMortalityStage,
-    PopulationUpdateStage,
-    # 遗传与演化阶段
-    SpeciationDataTransferStage,
-    GeneActivationStage,
-    GeneFlowStage,
-    GeneticDriftStage,
-    AutoHybridizationStage,
-    SubspeciesPromotionStage,
-    # AI 阶段
-    SpeciationStage,
-    # 后处理阶段
-    BackgroundManagementStage,
-    BuildReportStage,
-    SaveMapSnapshotStage,
-    VegetationCoverStage,
-    SavePopulationSnapshotStage,
-    EmbeddingStage,
-    SaveHistoryStage,
-    ExportDataStage,
-    FinalizeStage,
-)
-from .regression_test import (
-    RegressionTestRunner,
-    RegressionResult,
-    QuickConsistencyChecker,
-    generate_regression_report,
-    run_quick_consistency_check,
-)
-from .snapshot import (
-    SnapshotManager,
-    WorldSnapshot,
-    SnapshotMetadata,
-    create_snapshot,
-    list_snapshots,
-    restore_from_snapshot,
-    get_snapshot_manager,
-)
-from .logging_config import (
-    LogCategory,
-    StageLogger,
-    StageSummary,
-    LogFilter,
-    SimulationLogManager,
-    get_log_manager,
-    get_stage_logger,
-    configure_log_filter,
-    enable_debug_logging,
-    disable_debug_logging,
-)
+from importlib import import_module
+from typing import Any
 
-# 导入插件阶段（自动注册）
-from . import plugin_stages
-
-# 张量计算阶段
-from .tensor_stages import (
-    PressureTensorStage,
-    TensorEcologyStage,
-    TensorStateSyncStage,
-    TensorMetricsStage,
-    get_tensor_stages,
-    get_minimal_tensor_stages,
-)
+_EXPORTS = {
+    "AVAILABLE_MODES": ("stage_config", "AVAILABLE_MODES"),
+    "AutoHybridizationStage": ("stages", "AutoHybridizationStage"),
+    "BackgroundManagementStage": ("stages", "BackgroundManagementStage"),
+    "BaseStage": ("stages", "BaseStage"),
+    "BuildReportStage": ("stages", "BuildReportStage"),
+    "DependencyError": ("stages", "DependencyError"),
+    "EmbeddingStage": ("stages", "EmbeddingStage"),
+    "ExportDataStage": ("stages", "ExportDataStage"),
+    "FetchSpeciesStage": ("stages", "FetchSpeciesStage"),
+    "FinalMortalityStage": ("stages", "FinalMortalityStage"),
+    "FinalizeStage": ("stages", "FinalizeStage"),
+    "FoodWebStage": ("stages", "FoodWebStage"),
+    "GeneActivationStage": ("stages", "GeneActivationStage"),
+    "GeneFlowStage": ("stages", "GeneFlowStage"),
+    "GeneticDriftStage": ("stages", "GeneticDriftStage"),
+    "InitStage": ("stages", "InitStage"),
+    "LegacyTurnRunner": ("legacy_engine", "LegacyTurnRunner"),
+    "LogCategory": ("logging_config", "LogCategory"),
+    "LogFilter": ("logging_config", "LogFilter"),
+    "MapEvolutionStage": ("stages", "MapEvolutionStage"),
+    "ModeParameters": ("stage_config", "ModeParameters"),
+    "ParsePressuresStage": ("stages", "ParsePressuresStage"),
+    "Pipeline": ("pipeline", "Pipeline"),
+    "PipelineBuilder": ("pipeline", "PipelineBuilder"),
+    "PipelineConfig": ("pipeline", "PipelineConfig"),
+    "PipelineMetrics": ("pipeline", "PipelineMetrics"),
+    "PipelineResult": ("pipeline", "PipelineResult"),
+    "PipelineStageConfig": ("stage_config", "PipelineStageConfig"),
+    "PopulationUpdateStage": ("stages", "PopulationUpdateStage"),
+    "PostMigrationNicheStage": ("stages", "PostMigrationNicheStage"),
+    "PreliminaryMortalityStage": ("stages", "PreliminaryMortalityStage"),
+    "PressureTensorStage": ("tensor_stages", "PressureTensorStage"),
+    "QuickConsistencyChecker": ("regression_test", "QuickConsistencyChecker"),
+    "RegressionResult": ("regression_test", "RegressionResult"),
+    "RegressionTestRunner": ("regression_test", "RegressionTestRunner"),
+    "SaveHistoryStage": ("stages", "SaveHistoryStage"),
+    "SaveMapSnapshotStage": ("stages", "SaveMapSnapshotStage"),
+    "SavePopulationSnapshotStage": ("stages", "SavePopulationSnapshotStage"),
+    "SimulationContext": ("context", "SimulationContext"),
+    "SimulationEngine": ("engine", "SimulationEngine"),
+    "SimulationLogManager": ("logging_config", "SimulationLogManager"),
+    "SnapshotManager": ("snapshot", "SnapshotManager"),
+    "SnapshotMetadata": ("snapshot", "SnapshotMetadata"),
+    "SpeciationDataTransferStage": ("stages", "SpeciationDataTransferStage"),
+    "SpeciationStage": ("stages", "SpeciationStage"),
+    "Stage": ("stages", "Stage"),
+    "StageConfig": ("stage_config", "StageConfig"),
+    "StageDependency": ("stages", "StageDependency"),
+    "StageDependencyValidator": ("stages", "StageDependencyValidator"),
+    "StageLoader": ("stage_config", "StageLoader"),
+    "StageLogger": ("logging_config", "StageLogger"),
+    "StageMetrics": ("pipeline", "StageMetrics"),
+    "StageOrder": ("stages", "StageOrder"),
+    "StageRegistry": ("stage_config", "StageRegistry"),
+    "StageResult": ("stages", "StageResult"),
+    "StageSummary": ("logging_config", "StageSummary"),
+    "SubspeciesPromotionStage": ("stages", "SubspeciesPromotionStage"),
+    "TectonicMovementStage": ("stages", "TectonicMovementStage"),
+    "TensorEcologyStage": ("tensor_stages", "TensorEcologyStage"),
+    "TensorMetricsStage": ("tensor_stages", "TensorMetricsStage"),
+    "TensorStateSyncStage": ("tensor_stages", "TensorStateSyncStage"),
+    "TieringAndNicheStage": ("stages", "TieringAndNicheStage"),
+    "VegetationCoverStage": ("stages", "VegetationCoverStage"),
+    "WorldSnapshot": ("snapshot", "WorldSnapshot"),
+    "configure_log_filter": ("logging_config", "configure_log_filter"),
+    "create_snapshot": ("snapshot", "create_snapshot"),
+    "create_stage_config_from_engine_flags": (
+        "stage_config",
+        "create_stage_config_from_engine_flags",
+    ),
+    "disable_debug_logging": ("logging_config", "disable_debug_logging"),
+    "enable_debug_logging": ("logging_config", "enable_debug_logging"),
+    "generate_regression_report": ("regression_test", "generate_regression_report"),
+    "get_default_stages": ("stages", "get_default_stages"),
+    "get_log_manager": ("logging_config", "get_log_manager"),
+    "get_minimal_tensor_stages": ("tensor_stages", "get_minimal_tensor_stages"),
+    "get_mode_description": ("stage_config", "get_mode_description"),
+    "get_mode_parameters": ("stage_config", "get_mode_parameters"),
+    "get_snapshot_manager": ("snapshot", "get_snapshot_manager"),
+    "get_stage_logger": ("logging_config", "get_stage_logger"),
+    "get_tensor_stages": ("tensor_stages", "get_tensor_stages"),
+    "list_snapshots": ("snapshot", "list_snapshots"),
+    "load_mode_with_parameters": ("stage_config", "load_mode_with_parameters"),
+    "load_stage_config_from_yaml": ("stage_config", "load_stage_config_from_yaml"),
+    "register_stage": ("stage_config", "register_stage"),
+    "restore_from_snapshot": ("snapshot", "restore_from_snapshot"),
+    "run_quick_consistency_check": ("regression_test", "run_quick_consistency_check"),
+    "stage_registry": ("stage_config", "stage_registry"),
+}
 
 __all__ = [
-    # 核心类
     "SimulationEngine",
     "SimulationContext",
-    "LegacyTurnRunner",  # 仅用于回归测试
-    # 流水线
+    "LegacyTurnRunner",
     "Pipeline",
     "PipelineBuilder",
     "PipelineConfig",
     "PipelineResult",
     "PipelineMetrics",
     "StageMetrics",
-    # 阶段
     "Stage",
     "BaseStage",
     "StageOrder",
@@ -152,7 +116,6 @@ __all__ = [
     "StageDependencyValidator",
     "DependencyError",
     "get_default_stages",
-    # 配置与模式
     "StageConfig",
     "PipelineStageConfig",
     "StageRegistry",
@@ -166,13 +129,11 @@ __all__ = [
     "ModeParameters",
     "AVAILABLE_MODES",
     "StageLoader",
-    # 回归测试
     "RegressionTestRunner",
     "RegressionResult",
     "QuickConsistencyChecker",
     "generate_regression_report",
     "run_quick_consistency_check",
-    # 快照
     "SnapshotManager",
     "WorldSnapshot",
     "SnapshotMetadata",
@@ -180,7 +141,6 @@ __all__ = [
     "list_snapshots",
     "restore_from_snapshot",
     "get_snapshot_manager",
-    # 日志
     "LogCategory",
     "StageLogger",
     "StageSummary",
@@ -191,7 +151,6 @@ __all__ = [
     "configure_log_filter",
     "enable_debug_logging",
     "disable_debug_logging",
-    # 张量阶段
     "PressureTensorStage",
     "TensorEcologyStage",
     "TensorStateSyncStage",
@@ -199,3 +158,19 @@ __all__ = [
     "get_tensor_stages",
     "get_minimal_tensor_stages",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = _EXPORTS[name]
+    module = import_module(f".{module_name}", __name__)
+    if module_name == "stage_config":
+        import_module(".plugin_stages", __name__)
+    value = getattr(module, attribute)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_EXPORTS))
