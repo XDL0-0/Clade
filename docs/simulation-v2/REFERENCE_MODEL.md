@@ -65,6 +65,26 @@ biome 综合高程、水、温度、湿度、土壤和叶碳决定。编码为�
 - traits 共用预算，禁止无代价全面增强。selection、mutation、gene flow、drift、isolation history 必须由数值状态驱动；AI 只能解释已经提交的事实。
 - 已灭绝物种保留历史元数据，不重用它的 ID；复活、引入物种与 axis 扩容必须另有明确 Command。
 
+## 已实现的生态、移动、人口与解释层
+
+`Suitability → Capacity → Competition → Feeding → Dispersal → Migration → Connectivity → Mortality → Reproduction → Population Update`
+
+K 来自可食库存/个体需求、体重、水和适宜度。竞争包含种内数量压力与结构化角色、栖息地、温度适应、traits 的 niche overlap；摄食按竞争后的需求共享有限叶碳。producer 摄入效率1、herbivore效率0.5，未同化部分进入 detritus。carnivore 使用实际 food-web 边的 Holling II，攻击、防御、速度、毒素/解毒、合作、体型和共栖影响 encounter；多个 predator 以确定性随机顺序竞争共享猎物。
+
+捕食 Stage version **2** 的处理时间为 `0.02 + 0.25 × prey_mass / predator_mass` 年/猎物。先前 `0.5 + prey_mass/predator_mass` 的饱和摄食上限低于默认捕食者维护需求，构成必然饥饿的参数错误。新版本有独立可行性测试与长跑；不承诺全部捕食者都存活，仍需进一步生态校准。改变 manifest 中的 stage version 会拒绝隐式续算旧模型，但旧快照仍可只读 replay。
+
+扩散是小比例相邻流量；压力迁移只选择适宜度或密度改善的地块，单次最多半数活体。整数个体和同比储备同步移动；上一步刚到达者不会在同一 Stage 被重复移动。陆水通路、高差>800米、陆地河流通量>1000构成明确参考障碍。当前 speed trait 不改变迁移速度，因此 fitness 不虚构这个收益。
+
+死亡按温度、饥饿、捕食、竞争、疾病、灾害、寿命、其它八个排他原因记录。捕食碳已在 feeding 转移；mortality 只处理其它死亡的尸体与储备，以及实际维持代谢。出生受密度和可支付结构碳限制，没有活亲本则不能出生。完整 demography 要求生态 `dt∈(0,1]` 年；单独资源核的零步/大步边界不等于整条 pipeline 支持这些步长。
+
+所有会计检查使用各库存的差与实际流量，避免大总池抵消掩盖小通量丢失；超出数值容差会拒绝本回合候选状态。人口加减及死亡原因累计使用宽整数检查再缩窄到 int64，不允许 wraparound。
+
+`explainable_pipeline()` 继续执行 selection pressure、trait finite-difference fitness proxy、extinction lifecycle 与 metrics，共20个 Stage。这个层只解释选择压力，不改变 traits。fitness 重用真实捕食参数，代价使用实际维护系数；它固定地理、密度与适宜度，是年度收益代理，并非真实存活率的数学导数。没有实现收益的 engineering 在当前 proxy 中只计维护代价。
+
+灭绝保留 ID、祖先、后代、最后非零数量、最后压缩分布、原因和发生回合。genesis 为这一 pipeline 保存初始压缩分布，首回合灭绝也有依据。功能性灭绝/Critical/Declining 可恢复；Extinct 是终态。下降必须是连续观测回合，重复执行同 turn 不重复发事件。
+
+指标定义：Shannon 使用个体比例与自然对数；Simpson 为 `1−Σp²`；营养级以结构生物量加权；总生物量包含结构、可食叶碳和储备，detritus 单列。稳定性为与紧邻上一 turn 的丰度 Bray–Curtis 相似度，已知空→空为1，缺失 baseline 为 null。迁移率当前为 movement steps / (期末人口+死亡)，一个个体可在扩散和迁移中各计一次，不代表唯一迁移个体比例。基因多样性在演化阶段接入前明确为 null。
+
 ## 验收边界
 
 环境/资源的公式单测、性质测试和短链 durable replay 是当前证据；尚不能证明生态稳定性、物种涌现或协同演化。待消费者、迁移、人口和演化阶段接入后，必须另跑 100/500/1000 turn 多 seed 的生态长跑、参数扰动与配对对照。已有 storage benchmark 只能证明其固定负载下的存储行为。

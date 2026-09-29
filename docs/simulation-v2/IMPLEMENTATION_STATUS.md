@@ -118,3 +118,27 @@
 - Known issues：尚无完整生态长跑；水文无湖盆溢流，封闭洼地水可持续积累；生态年当前固定12 turn季节；基础分解/外部无机碳和水生水库是明确简化；默认旧游戏入口仍未切换。预留slot容量、CPU开销需要完整模型验收后评估。
 - Save compatibility：旧JSON/gzip读写/导入全量回归仍通过。新参考genesis显式新model；6stage历史可重建，分支共享输入RNG时同数值结果，+4°C分支不污染control。
 - Next：审查适宜度/动态K/竞争/Holling摄食，接入守恒迁移和统一人口账本，再进入selection与演化。
+
+## Step 6c — 生态、迁移、人口与端到端长跑
+
+- New files：reference/{ecology,feeding,movement,demography_inputs,mortality,reproduction,demography,metrics,model}.py；tests/v2/test_reference_{ecology,movement,demography,metrics,integration}.py；scripts/benchmark_reference_ecology.py；两份1000turn证据JSON。
+- Changed files：world.py 初始化紧凑genesis观测baseline，预留人口/生态scratch；Removed legacy code：无。纯CPU新路径仍显式opt-in，未让旧GPU runtime运行新模型。
+- 实现：动态K、niche竞争、资源扣减、Holling共享猎物整数死亡；守恒扩散/压力迁移/地理连通；八原因排他死亡、储备支付出生、单一常规人口更新；紧凑metrics、17stage组装、真实存储/replay/branch验收。
+- Tests added/passed：生态37、移动48、人口20、metrics9、整链durable1；最终共享全量1625 passed/9既有warnings（已包含下一批selection43/lifecycle71，之后新增20stage集成2项也定向通过）；72源/测试文件strict gate通过。所有新增业务文件均<500行。
+- 每步查看修复：feeding/movement/mortality/reproduction大库存吞通量；死亡原因int64累计溢出；极小K与体重无意义除法溢出；metrics空baseline/首turn灭绝漏记/错误species axis。均保留反例回归。独立只读gate113项通过；增加捕食v2后另跑38项生态+整链回归。
+- 参数修正：初版Holling处理时间使默认carnivore饱和摄入仍不足维持代谢。明确升FeedingStage version2，保留初版长跑作对照，新增默认捕食者高猎物密度可维持测试；并非人为确保物种存活。
+- Performance impact：8×4、7初始物种、16slots、17stage、seed37、checkpoint25、每50turn mock AI，v2第100/500/1000回合人口13106/10004/6397，richness5/3/3；累计238次捕食死亡、444534个迁移步。C最大误差5.18e-12、N最大误差4.55e-13；各窗口重演/replay/reopen均通过。RSS54.5/55.1/55.2MB；存档6.35/28.99/56.92MB；末100turn median317.7ms（包含持久化、profile读取和校验，不是纯数值耗时）。初版完整长跑、另seed8的100turn也留有本地报告；不把单seed1000turn当全面稳定性证明。
+- Known issues：多样性仍下降，不能据此宣称长期营养结构或涌现已经验收。此次完整长跑未含适应/物种分化/生态工程；存档随事件/差量历史线性增长，无GC策略；磁盘校验占据明显成本。最后增加的统计定义文字/有界timing deque不改变数值模型。参考模型不是现实生态标定。
+- Save compatibility：旧JSON/gzip读写/导入全量回归保持；新参数用stage版本隔离，旧参考世界可replay，不能静默按新manifest续算。前端默认流程未变。
+- Next：20stage解释层验收；mutation/drift/gene flow/adaptation/speciation，再开放新API/前端访问。
+
+## Step 6d — 选择压力、fitness梯度与灭绝化石记录
+
+- New files：reference/{selection,fitness,extinction}.py；tests/v2/{test_reference_selection,test_reference_extinction,test_explainable_pipeline}.py。
+- Changed files：world.py 按显式manifest初始化选择信号和genesis压缩分布；model.py新增explainable_pipeline，保留17stage ecology基线；Removed legacy code：无。
+- Tests added/passed：选择/梯度43、灭绝71、真实20stage集成2项。独立灭绝review又跑正常/灾害两组3turn并重复重演，无重复终态事件；主代理20turn重复执行state/event一致、durable灾害化石回放通过。
+- 修复：fitness删掉混用当回合/年度单位且不影响梯度的baseline；逐边差分+独立精确维护梯度避免数值抵消；灭绝跨观测缺口不延续下降计数、同turn幂等、首turn初始分布、历史字段边界和点号ID保留。
+- Known issues：fitness是固定密度/适宜度下的稀疏食物边代理，不是完整生命过程的导数；这一层不执行trait mutation，也没有fossil API/UI，后续阶段继续。温度/水压力目前可解释，不代表已有相应热适应性状。
+- Performance impact：信号准备O(food edges×tiles)，梯度按关联边而非全species对；未单独标定大图成本。压缩分布只保留当前及最终一次，历史由delta承担。
+- Save compatibility：新增stage由manifest显式区分；旧17stage世界继续由旧配方读取，不添加缺失genes假装续算。
+- Next：真实遗传过程、预算约束、EvolutionTrace、条件化SpeciationProposal与守恒commit；同步准备隔离V2 API。
