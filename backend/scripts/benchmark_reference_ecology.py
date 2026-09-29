@@ -1,4 +1,4 @@
-"""Opt-in ecology/demography + durable replay stress, without evolution or real AI.
+"""Opt-in reference ecosystem + durable replay stress, without real AI.
 
 python -m scripts.benchmark_reference_ecology --turns 1000 --output report.json
 The world is isolated in a temporary directory; no production saves are changed.
@@ -26,7 +26,7 @@ from app.ai.jobs.models import JobSpec
 from app.ai.jobs.schemas import fallback_result
 from app.simulation.v2.context import TurnContext, WorldSnapshot
 from app.simulation.v2.engine import SimulationEngineV2, TurnCommand
-from app.simulation.v2.reference.model import ecological_pipeline
+from app.simulation.v2.reference.model import ecological_pipeline, evolution_pipeline
 from app.simulation.v2.reference.world import MODEL_ID, create_reference_snapshot
 from app.simulation.v2.values import JsonValue, thaw
 from app.simulation.v2.version import WorldVersion
@@ -68,10 +68,12 @@ def mock_plan(context: TurnContext) -> tuple[JobSpec, ...]:
     )
 
 
-def run(turns: int, *, seed: int = 37, width: int = 8, height: int = 4) -> dict[str, object]:
+def run(
+    turns: int, *, seed: int = 37, width: int = 8, height: int = 4, evolution: bool = False
+) -> dict[str, object]:
     if turns < 1:
         raise ValueError("turns must be positive")
-    pipeline = ecological_pipeline()
+    pipeline = evolution_pipeline() if evolution else ecological_pipeline()
     source_hashes = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted((Path(__file__).parents[1] / "app/simulation/v2/reference").glob("*.py"))
@@ -178,7 +180,11 @@ def run(turns: int, *, seed: int = 37, width: int = 8, height: int = 4) -> dict[
                     flush=True,
                 )
     return {
-        "scope": "17-stage environment/resources/ecology/movement/demography; no evolution yet",
+        "scope": (
+            "26-stage ecosystem with deme evolution, speciation and extinction lifecycle"
+            if evolution
+            else "17-stage environment/resources/ecology/movement/demography; no evolution"
+        ),
         "seed": seed,
         "turns": turns,
         "width": width,
@@ -202,7 +208,10 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=37)
     parser.add_argument("--width", type=int, default=8)
     parser.add_argument("--height", type=int, default=4)
+    parser.add_argument("--evolution", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    report = run(args.turns, seed=args.seed, width=args.width, height=args.height)
+    report = run(
+        args.turns, seed=args.seed, width=args.width, height=args.height, evolution=args.evolution
+    )
     args.output.write_text(json.dumps(report, indent=2) + "\n")

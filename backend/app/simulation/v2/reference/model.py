@@ -54,3 +54,33 @@ def explainable_pipeline() -> DeterministicPipeline:
             MetricsStage(after="reference_extinction"),
         ]
     )
+
+
+def evolution_pipeline() -> DeterministicPipeline:
+    """Deme adaptation, isolated lineage splitting and fossil lifecycle.
+
+    A separate stage manifest preserves replay compatibility for worlds created
+    with either earlier reference recipe. Changing recipes requires a new world.
+    """
+    from .adaptation import AdaptationStage
+    from .extinction import ExtinctionStage
+    from .fitness import TraitFitnessGradientStage
+    from .genetics import GeneFlowStage, GeneticDriftStage, MutationStage
+    from .selection import SelectionPressureStage
+    from .speciation import SpeciationCommitStage, SpeciationProposalStage
+
+    return DeterministicPipeline(
+        [
+            *ecological_pipeline().stages[:-1],
+            SelectionPressureStage(),
+            TraitFitnessGradientStage(),
+            MutationStage(),
+            GeneticDriftStage(),
+            GeneFlowStage(),
+            AdaptationStage(),
+            SpeciationProposalStage(),
+            SpeciationCommitStage(),
+            ExtinctionStage(after="reference_speciation"),
+            MetricsStage(after="reference_extinction", genetics=True),
+        ]
+    )

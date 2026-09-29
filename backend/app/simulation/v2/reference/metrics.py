@@ -13,10 +13,11 @@ from .demography_inputs import float_matrix, inputs, integer_matrix
 
 
 class MetricsStage(SimulationStage):
-    def __init__(self, *, after: str = "reference_population") -> None:
+    def __init__(self, *, after: str = "reference_population", genetics: bool = False) -> None:
+        self.genetics = genetics
         self.contract = StageContract(
             "reference_metrics",
-            "1",
+            "2" if genetics else "1",
             (after,),
             reads=(
                 "state.geometry",
@@ -32,6 +33,7 @@ class MetricsStage(SimulationStage):
                 "arrays.births",
                 "arrays.deaths",
                 "arrays.migration_in",
+                *(("arrays.deme_traits",) if genetics else ()),
             ),
             writes=("state.observability",),
         )
@@ -142,7 +144,9 @@ class MetricsStage(SimulationStage):
             "migration_rate": migrations / (total_population + deaths)
             if total_population + deaths
             else 0.0,
-            "migration_rate_definition": "movement steps / (end population + deaths); not unique migrants",
+            "migration_rate_definition": (
+                "movement steps / (end population + deaths); not unique migrants"
+            ),
             "births": births,
             "deaths": deaths,
             "npp": float(npp.sum()),
@@ -151,6 +155,14 @@ class MetricsStage(SimulationStage):
             "stability_definition": "1 - Bray-Curtis abundance turnover since previous turn",
             "trait_distribution": traits_summary,
         }
+        if self.genetics:
+            from .diversity import deme_diversity
+
+            metrics["genetic_diversity"] = deme_diversity(context, pop)
+            metrics["genetic_diversity_definition"] = (
+                "population-weighted within-species variance of seven deme mean traits; "
+                "not individual genetic diversity or allele heterozygosity"
+            )
         return result(
             context,
             self.contract.name,

@@ -142,3 +142,15 @@
 - Performance impact：信号准备O(food edges×tiles)，梯度按关联边而非全species对；未单独标定大图成本。压缩分布只保留当前及最终一次，历史由delta承担。
 - Save compatibility：新增stage由manifest显式区分；旧17stage世界继续由旧配方读取，不添加缺失genes假装续算。
 - Next：真实遗传过程、预算约束、EvolutionTrace、条件化SpeciationProposal与守恒commit；同步准备隔离V2 API。
+
+## Step 6e — 局部遗传、渐进适应与数值分化
+
+- New files：reference/{evolution_contracts,genetics,adaptation,speciation,speciation_commit,diversity}.py；tests/v2/{test_reference_adaptation,test_reference_speciation,test_evolution_pipeline}.py；EVOLUTION_MIGRATION_MAP.md、evidence/evolution-1000-seed37.json。
+- Changed files：world.py按manifest增加固定轴deme/proposal/gene population/connectivity/age；model.py新增26stage配方；metrics.py新增version2群体均值方差；benchmark_reference_ecology支持显式--evolution；Removed legacy code：无。
+- Tests added/passed：adaptation44（含40个Hypothesis世界）、speciation76、持久化全链2；定向133 passed，包含原metrics/lifecycle集成。共享后端全量1799 passed/9既有warnings（其中还包含新API48+mount2；不要与这些计数再相加）；93个迁移源/测试文件strict lint/format/mypy通过。
+- 每步查看：修正漂变方差应随1/N；约束投影后的定向步不得降低线性proxy；armor不足speed不能免费增加；分化父traits按剩余个体重算；身份转出不伪造Declining；大碳池旁极小reserve使用逐项精确转移校验；两套旧配方仍保持可独立执行。
+- 独立验收：seed8/91各100turn，seed8完整重复100turn逐turn hash相同；C最大残差3.24e-12/N2.27e-13；每turn global traits等于deme加权均值。构造双岛隔离fixture，完整26stage在turn25达到score0.8635分化，26/27继续运行并保留食物网与谱系，无重复split；不是仅对standalone stage断言。
+- Performance impact：seed37、8×4、16slots、checkpoint25、每50turn模板AI，100/500/1000turn回放及检查点纯复算通过；人口13119/9988/6342、richness5/3/3；C最大残差4.07e-12、N4.55e-13。RSS58.6/57.5/58.7MB，存档11.69/50.15/96.49MB，末100turn median439.2ms（包含持久化/读取/校验），受同期测试负载影响，不能作为纯算子benchmark。
+- Known issues：默认1000turn未自然分化，仍发生多样性下降；不得声称物种涌现/长期营养级平衡已经完成。Deme均值不是个体基因型，基因流与fitness是已注明的近似；新遗传数组增加每turn差量体积；固定slot满时延期分化。真实LLM接线、生态工程、适应性精度与Mod/Scenario仍待后续。
+- Save compatibility：所有旧JSON/gzip兼容回归仍通过；已存17/20stage历史可重建；新26stage world明确新manifest，不把缺基因的旧档静默升级。AI模板完成不会改数值hash。
+- Next：V2 API与实验室界面验收；事件驱动叙事job接线；再逐项加入生态反馈/协同演化和实验调度，不删除仍承担默认旧游戏的legacy路径。

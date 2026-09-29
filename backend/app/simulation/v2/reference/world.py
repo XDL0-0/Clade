@@ -148,6 +148,7 @@ def create_reference_snapshot(
     stage_versions = manifest.get("stages", {})
     has_lifecycle = isinstance(stage_versions, Mapping) and "reference_extinction" in stage_versions
     has_selection = isinstance(stage_versions, Mapping) and "reference_selection" in stage_versions
+    has_genetics = isinstance(stage_versions, Mapping) and "reference_mutation" in stage_versions
     rng = SeedManager(seed, "reference-genesis", 0)
     terrain = rng.stream("genesis", "1", purpose="terrain")
     phase = terrain.uniform(0) * 2 * math.pi
@@ -274,4 +275,15 @@ def create_reference_snapshot(
     if has_selection:
         for name in ("selection_pressure", "fitness_gradients"):
             arrays[name] = FrozenArray.from_numpy(np.zeros((max_species, 7), dtype=np.float64))
+    if has_genetics:
+        deme = np.zeros((max_species, tiles, len(TRAITS)), dtype=np.float64)
+        for slot, item in enumerate(seeds):
+            deme[slot] = [number(item.traits[name], name) for name in TRAITS]
+        for name in ("deme_traits", "trait_proposals"):
+            arrays[name] = FrozenArray.from_numpy(deme)
+        arrays["gene_population"] = FrozenArray.from_numpy(population)
+        arrays["gene_connectivity"] = FrozenArray.from_numpy(
+            np.full(population.shape, -1, dtype=np.int64)
+        )
+        arrays["isolation_age"] = FrozenArray.from_numpy(np.zeros(population.shape, dtype=np.int64))
     return WorldSnapshot(version, 0, state, arrays, manifest)
