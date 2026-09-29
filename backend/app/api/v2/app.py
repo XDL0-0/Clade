@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from app.ai.jobs.local import LocalNarrativeConfig
 
 from app.simulation.v2.experiments import ExperimentConflict
 from app.simulation.v2.pipeline import StageExecutionError
@@ -17,6 +18,7 @@ from app.storage.database import IdempotencyConflict, StorageCorruption
 from .experiments import create_experiment_router
 from .routes import create_router
 from .service import NarrativePlanner, NotFound, PipelineFactory, SimulationService
+from .narrative_runtime import narrative_lifespan
 
 
 def create_app(
@@ -26,14 +28,24 @@ def create_app(
     narrative_planner: NarrativePlanner | None = None,
     route_prefix: str = "/api/v2",
     compatible_factories: tuple[PipelineFactory, ...] = (),
+    narrative_config: LocalNarrativeConfig | None = None,
 ) -> FastAPI:
     service = SimulationService(
         root, pipeline_factory, narrative_planner, compatible_factories=compatible_factories
     )
-    application = FastAPI(title="Clade CPU simulation v2", version="2")
+    application = FastAPI(title="Clade CPU simulation v2", version="2", lifespan=narrative_lifespan)
     application.state.simulation_service = service
+    application.state.narrative_config = narrative_config
     application.include_router(create_router(service, prefix=route_prefix))
     application.include_router(create_experiment_router(service, prefix=route_prefix))
+
+    @application.get(route_prefix + "/narrative-provider")
+    def narrative_provider() -> dict[str, object]:
+        return {
+            "enabled": narrative_config is not None,
+            "provider_name": narrative_config.provider_name if narrative_config else None,
+            "provider_model": narrative_config.model if narrative_config else None,
+        }
 
     async def not_found(request: Request, exc: Exception) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=404)

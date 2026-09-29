@@ -198,6 +198,8 @@ class ReferenceNarrativePlanner:
     adaptation_threshold: float = 0.02
     max_jobs_per_turn: int = 4
     provider_config_hash: str = "offline-template-v1"
+    provider_name: str | None = None
+    provider_model: str | None = None
 
     def __post_init__(self) -> None:
         _number(self.adaptation_threshold, "adaptation threshold", 0.01, 1)
@@ -287,6 +289,8 @@ class ReferenceNarrativePlanner:
                 prompt_version=PROMPT_VERSION,
                 provider_config_hash=self.provider_config_hash,
                 payload={
+                    **({"provider_name": self.provider_name, "provider_model": self.provider_model}
+                       if self.provider_model is not None else {}),
                     "policy": policy,
                     "event_type": fact.event.type,
                     "event_turn": fact.event.turn,

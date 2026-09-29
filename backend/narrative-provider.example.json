@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "provider_name": "Mammoet",
+  "base_url": "http://127.0.0.1:8084/v1",
+  "model": "qwen3.8-flash-next",
+  "api_key": ""
+}

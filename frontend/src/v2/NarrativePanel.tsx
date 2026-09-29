@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { API, request } from "./api";
 import { ErrorNotice } from "./Forms";
 import { useNarratives, type PresentationView } from "./presentationQueries";
 import type { NarrativeAnnotation, NarrativeChild, NarrativeResult } from "./presentationTypes";
@@ -9,6 +11,7 @@ const jobLabels = {
   speciation: "谱系的新枝", hybridization: "相遇后的新生",
 };
 const sourceLabels = {
+  local_model: "本地 Qwen",
   offline_template: "离线叙述", fallback_template: "备用叙述", unspecified_provider: "来源未标记",
 };
 function ChildDescription({ child }: { child: NarrativeChild }) {
@@ -62,18 +65,23 @@ function ResultFields({ result }: { result: NarrativeResult }) {
 }
 function Annotation({ annotation }: { annotation: NarrativeAnnotation }) {
   const { result } = annotation;
+  const source = annotation.fallback_used === true ? "fallback_template" : annotation.source;
+  const providerDetails = [annotation.provider_name, annotation.provider_model].filter(Boolean).join(" · ");
   return (
     <article className="lab-narrative-entry journal-narrative-entry">
       <div className="lab-narrative-labels">
         <strong>{jobLabels[result.job_type]}</strong>
-        <span>{annotation.source ? sourceLabels[annotation.source] : "来源未标记"}</span>
+        <span title={source === "local_model" ? providerDetails || undefined : undefined}>
+          {(source && sourceLabels[source]) || "来源未标记"}
+        </span>
       </div>
       <ResultFields result={result} />
       <details className="journal-details">
         <summary>详细数据 · 故事来源{result.source_event_ids.length > 0 ? `（${result.source_event_ids.length} 条事件）` : ""}</summary>
         <p className="lab-note">
-          {annotation.source === "offline_template" ? "这段文字由离线模板整理。"
-            : annotation.source === "fallback_template" || annotation.fallback_used === true ? "这段文字使用了备用模板。"
+          {source === "local_model" ? `这段文字由本地 Qwen 生成${providerDetails ? `（${providerDetails}）` : ""}。`
+            : source === "offline_template" ? "这段文字由离线模板整理。"
+            : source === "fallback_template" ? "这段文字使用了备用模板（默认文案）。"
               : "记录未标明生成来源。"}
           叙述用于解读历史，不改变物种或地图。
         </p>
@@ -88,6 +96,16 @@ function Annotation({ annotation }: { annotation: NarrativeAnnotation }) {
 }
 export function NarrativePanel({ species, ...view }: PresentationView & { species: string }) {
   const [filter, setFilter] = useState<"selected" | "all">("selected");
+  const provider = useQuery({
+    queryKey: ["v2", "narrative-provider"],
+    queryFn: ({ signal }) => request<{
+      enabled: boolean;
+      provider_name: string | null;
+      provider_model: string | null;
+    }>(`${API}/narrative-provider`, undefined, signal),
+    retry: false,
+    staleTime: 60_000,
+  });
   const query = useNarratives(view, filter === "selected" && species ? species : null);
   const pages = query.data?.pages ?? [];
   const groups = pages.flatMap((page) => page.items);
@@ -98,6 +116,13 @@ export function NarrativePanel({ species, ...view }: PresentationView & { specie
         <h2>生灵故事 <span className="lab-muted">{count} 篇</span></h2>
         <button disabled={query.isFetching} onClick={() => void query.refetch()}>重读故事</button>
       </div>
+      <p className="lab-note" title={provider.data?.provider_name ?? undefined}>
+        {provider.isError ? "暂时无法读取叙事模型配置。"
+          : provider.isPending ? "正在读取叙事模型配置…"
+            : provider.data.enabled
+              ? `本地 Qwen${provider.data.provider_model ? ` · ${provider.data.provider_model}` : ""}`
+              : "叙事模型未启用"}
+      </p>
       <label>
         阅读谁的故事
         <select value={filter} onChange={(event) => setFilter(event.target.value as "selected" | "all")}>

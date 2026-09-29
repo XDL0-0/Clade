@@ -45,7 +45,9 @@ export interface NarrativeAnnotation {
   turn: number;
   narrative_revision: number;
   fallback_used?: boolean;
-  source?: "offline_template" | "fallback_template" | "unspecified_provider";
+  source?: "local_model" | "offline_template" | "fallback_template" | "unspecified_provider";
+  provider_model?: string;
+  provider_name?: string;
   result: NarrativeResult;
 }
 export interface NarrativeGroup {

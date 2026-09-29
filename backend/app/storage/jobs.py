@@ -122,7 +122,10 @@ class SQLiteJobRepository:
         self._notify(connection, stale, "AIJobStale")
         return stale
 
-    def claim(self, worker_id: str, *, now: float, lease_seconds: float) -> AIJob | None:
+    def claim(
+        self, worker_id: str, *, now: float, lease_seconds: float,
+        provider_config_hash: str | None = None,
+    ) -> AIJob | None:
         if not worker_id.strip() or not 0 < lease_seconds <= 3600:
             raise ValueError("A bounded worker lease is required")
         with self.db.transaction() as connection:
@@ -135,6 +138,8 @@ class SQLiteJobRepository:
                 job = AIJob.from_dict(decode(row["payload"]))
                 if not self._current(connection, job):
                     self._stale(connection, job, now)
+                    continue
+                if provider_config_hash is not None and job.spec.provider_config_hash != provider_config_hash:
                     continue
                 if job.attempts >= job.max_attempts:
                     failed = replace(

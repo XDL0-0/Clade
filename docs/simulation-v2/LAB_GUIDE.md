@@ -56,7 +56,8 @@ python -m scripts.run_narrative_jobs --root /absolute/path/to/lab-worlds --limit
 ```
 
 这条命令不调用真实 LLM。API 将它标记为 `offline_template`，不冒充模型输出。
-真实 provider 需通过已测试的 `ModelRouterNarrativeProvider` 和 `NarrativeWorker` 显式注入；当前启动命令不会自动启动付费请求。
+本地 provider 可由 `backend/data/narrative-provider.json` 启用。本机已配置 Mammoet 的 `qwen3.8-flash-next`，复用 `ModelRouterNarrativeProvider` 的结构化输出适配和 `NarrativeWorker` 的重试/版本检查；独立与挂载模式均由应用生命周期启动、停止一个后台worker。凭据留在被Git忽略的本机文件中，也可由环境变量提供。
+worker仅领取相同provider配置身份的新任务，已有离线任务不会被伪装成本地模型结果；模型/服务名随新任务保存，结果标注 `local_model`，失败后的模板仍标注 `fallback_template`。配置状态接口不发送模型请求，也不宣称服务健康。
 连续快进会让旧任务进入 STALE；先在某个 head 完成的叙事可继续在其后代历史中读取，已被回溯丢弃的未来不会混入历史。
 `fallback_used=false` 本身不证明使用了 LLM；来源未标记时显示 `unspecified_provider`。
 

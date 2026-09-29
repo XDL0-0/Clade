@@ -184,3 +184,14 @@
 - Performance impact：快进按回合顺序保存并更新界面，平行世界有界并发；本轮不做性能测量，未宣称加速。
 - Save compatibility：旧JSON/gzip入口保留，新世界使用独立SQLite/NPZ；已知旧V2配方继续按原manifest选择，不静默升级。
 - Next migration step：继续围绕物种成长、地图互动和玩家选择打磨游戏体验，按需接入真实叙事提供方；不再默认启动验证流程。
+
+## Step 7c — Mammoet 本地 Qwen 叙事
+
+- 用户指定接入本地Mammoet的Qwen Next。读取本机已有隧道和客户端配置，通过模型目录取得实际ID `qwen3.8-flash-next`，API为本地转发 `127.0.0.1:8084/v1`。
+- New files：`ai/jobs/local.py`、`api/v2/narrative_runtime.py`、不含凭据的 `backend/narrative-provider.example.json`。
+- Changed files：app/runtime/main生命周期、planner提供方身份、SQLite任务按provider配置筛选、叙事来源投影及前端模型标记。
+- 模型负责短中文故事/命名，不获得仓库或世界写入能力；worker复用现有schema、repair、fallback、完整版本检查和SSE。应用关闭时取消并等待worker，不遗留后台任务。
+- 本机私有配置保存到被Git忽略的 `backend/data/narrative-provider.json`，凭据未写入提交、界面或日志；后端重启加载配置。
+- Removed legacy code：无。Save compatibility：存储表未改，旧任务与注释继续读取；旧离线任务不转为该模型任务。
+- Tests added/passed：未新增或运行；未发送试运行生成请求。Performance impact：单个异步worker最多一个推理请求，不阻塞数值回合；未测量模型延迟。
+- Known issues：尚未核验模型实际生成结果；快进造成旧版本结果过期时会被丢弃，这是既有规则。模型故障时由有界重试与备用文案处理。

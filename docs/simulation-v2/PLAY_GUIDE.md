@@ -43,6 +43,7 @@ BACKEND_PORT=8022 npm run dev
 
 ## 当前进度
 
-这是新模拟核心的可玩入口，经典模式尚未整体切换。真实 LLM 叙事需要单独配置；没有配置也可以看世界纪事并完整推进模拟。
+这是新模拟核心的可玩入口，经典模式尚未整体切换。本机已配置 Mammoet 的 `qwen3.8-flash-next`：显著适应与分化发生后，后台生成中文叙事，故事面板标注“本地 Qwen”。快进期间来不及完成的旧回合任务会丢弃；模型不可用不阻塞世界推进。
+其他机器可将 `backend/narrative-provider.example.json` 复制为 `backend/data/narrative-provider.json`，填写本机接口及凭据后重启后端。也可以用 `CLADE_NARRATIVE_CONFIG` 指定配置路径、`CLADE_NARRATIVE_API_KEY` 提供凭据。真实凭据不随代码上传。
 Mod SDK、全面替换旧引擎、跨平台运行和进一步玩法平衡仍未完成。
-按最新要求，这轮玩法改动没有运行测试、构建或其他验证。
+按最新要求，这轮玩法与模型接线没有运行测试、构建或其他验证，也没有额外发送试运行生成请求。

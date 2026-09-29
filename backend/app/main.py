@@ -179,7 +179,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     logger.info("[启动] 服务容器初始化完成")
     
-    yield  # 应用在此运行
+    # Mounted FastAPI apps do not automatically enter their own lifespan.
+    lab = app.state.reference_lab
+    async with lab.router.lifespan_context(lab):
+        yield  # 应用在此运行
     
     # 关闭时清理（如需要）
     logger.info("[关闭] 应用正在关闭")

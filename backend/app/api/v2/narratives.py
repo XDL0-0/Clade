@@ -200,8 +200,12 @@ def _annotations(
                         if job.lease_owner == "reference-offline-template"
                         else "fallback_template"
                         if job.fallback_used
+                        else "local_model"
+                        if job.lease_owner == "local-model:" + str(spec.payload.get("provider_model", ""))
                         else "unspecified_provider"
                     ),
+                    "provider_name": spec.payload.get("provider_name"),
+                    "provider_model": spec.payload.get("provider_model"),
                     "result": validated,
                 }
             )
