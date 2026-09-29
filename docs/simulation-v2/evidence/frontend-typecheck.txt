@@ -1,0 +1,11 @@
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(28,3): error TS2305: Module '"recharts"' has no exported member 'Sparklines'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(29,3): error TS2305: Module '"recharts"' has no exported member 'SparklinesLine'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(429,29): error TS2339: Property 'child_code' does not exist on type 'BranchingEvent'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(430,28): error TS2339: Property 'parent_code' does not exist on type 'BranchingEvent'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(438,29): error TS2339: Property 'global_humidity' does not exist on type 'TurnReport'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(440,53): error TS2339: Property 'global_humidity' does not exist on type 'TurnReport'.
+src/components/GlobalTrendsPanel/GlobalTrendsPanelNew.tsx(597,23): error TS2322: Type 'RoleDistribution[]' is not assignable to type 'ChartDataInput[]'.
+  Type 'RoleDistribution' is not assignable to type 'ChartDataInput'.
+    Index signature for type 'string' is missing in type 'RoleDistribution'.
+src/components/SpeciesPanel/components/SpeciesListHeader.tsx(114,13): error TS2322: Type '"alive" | "extinct" | "all" | null' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.

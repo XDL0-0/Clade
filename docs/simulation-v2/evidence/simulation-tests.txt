@@ -1,0 +1,176 @@
+..................F................................F.................... [ 96%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+_______________ TestEcologicalRealismStage.test_stage_dependency _______________
+
+self = <app.simulation.tests.test_ecological_realism.TestEcologicalRealismStage object at 0x7bf720150e60>
+stage = <app.simulation.ecological_realism_stage.EcologicalRealismStage object at 0x7bf710749010>
+
+    def test_stage_dependency(self, stage):
+        """测试阶段依赖"""
+        dep = stage.get_dependency()
+
+>       assert "fetch_species" in dep.requires_stages
+E       AssertionError: assert 'fetch_species' in {'物种分层与生态位', '获取物种列表'}
+E        +  where {'物种分层与生态位', '获取物种列表'} = StageDependency(requires_stages={'获取物种列表', '物种分层与生态位'}, requires_fields={'all_habitats', 'all_tiles', 'species_batch'}, writes_fields={'plugin_data'}, optional_stages={'资源计算'}).requires_stages
+
+app/simulation/tests/test_ecological_realism.py:527: AssertionError
+___________________ TestStageRegistry.test_registered_stages ___________________
+
+self = <app.simulation.tests.test_pipeline.TestStageRegistry object at 0x7bf710706b40>
+
+    def test_registered_stages(self):
+        """测试已注册阶段"""
+        # 验证核心阶段已注册
+        expected_stages = [
+            "init", "parse_pressures", "map_evolution",
+            "fetch_species", "preliminary_mortality",
+            "migration", "final_mortality", "population_update",
+        ]
+
+        for stage_name in expected_stages:
+            stage_class = stage_registry.get(stage_name)
+>           assert stage_class is not None, f"阶段 {stage_name} 未注册"
+E           AssertionError: 阶段 preliminary_mortality 未注册
+E           assert None is not None
+
+app/simulation/tests/test_pipeline.py:271: AssertionError
+=============================== warnings summary ===============================
+../../../../tmp/clade-audit-venv/lib/python3.12/site-packages/taichi/_lib/utils.py:70
+  /tmp/clade-audit-venv/lib/python3.12/site-packages/taichi/_lib/utils.py:70: DeprecationWarning: 'locale.getdefaultlocale' is deprecated and slated for removal in Python 3.15. Use setlocale(), getencoding() and getlocale() instead.
+    return path.encode(locale.getdefaultlocale()[1])
+
+test_ecological_realism.py::TestSemanticAnchorService::test_initialization
+  test_ecological_realism.py:99: PytestWarning: The test <Function test_initialization> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestSemanticAnchorService::test_get_anchor
+  test_ecological_realism.py:104: PytestWarning: The test <Function test_get_anchor> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestSemanticAnchorService::test_list_anchors
+  test_ecological_realism.py:111: PytestWarning: The test <Function test_list_anchors> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestSemanticAnchorService::test_stats
+  test_ecological_realism.py:117: PytestWarning: The test <Function test_stats> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestAlleeEffect::test_healthy_population_no_allee
+  test_ecological_realism.py:150: PytestWarning: The test <Function test_healthy_population_no_allee> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestAlleeEffect::test_small_population_has_allee
+  test_ecological_realism.py:162: PytestWarning: The test <Function test_small_population_has_allee> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestAlleeEffect::test_critical_population_severe_penalty
+  test_ecological_realism.py:174: PytestWarning: The test <Function test_critical_population_severe_penalty> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestDiseaseModule::test_low_density_no_disease
+  test_ecological_realism.py:213: PytestWarning: The test <Function test_low_density_no_disease> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestDiseaseModule::test_high_density_has_disease
+  test_ecological_realism.py:223: PytestWarning: The test <Function test_high_density_has_disease> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestDiseaseModule::test_overcrowding_severe_disease
+  test_ecological_realism.py:233: PytestWarning: The test <Function test_overcrowding_severe_disease> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestEnvironmentalFluctuation::test_fluctuation_range
+  test_ecological_realism.py:271: PytestWarning: The test <Function test_fluctuation_range> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestEnvironmentalFluctuation::test_latitude_effect
+  test_ecological_realism.py:284: PytestWarning: The test <Function test_latitude_effect> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestVerticalNiche::test_different_layers_low_overlap
+  test_ecological_realism.py:321: PytestWarning: The test <Function test_different_layers_low_overlap> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestVerticalNiche::test_same_niche_overlap
+  test_ecological_realism.py:341: PytestWarning: The test <Function test_same_niche_overlap> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestMutualismNetwork::test_discover_mutualism
+  test_ecological_realism.py:385: PytestWarning: The test <Function test_discover_mutualism> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestMutualismNetwork::test_mutualism_benefit
+  test_ecological_realism.py:405: PytestWarning: The test <Function test_mutualism_benefit> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestAssimilationEfficiency::test_efficiency_range
+  test_ecological_realism.py:441: PytestWarning: The test <Function test_efficiency_range> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestEcologicalRealismStage::test_stage_properties
+  test_ecological_realism.py:518: PytestWarning: The test <Function test_stage_properties> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestEcologicalRealismStage::test_stage_dependency
+  test_ecological_realism.py:523: PytestWarning: The test <Function test_stage_dependency> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestHelperFunctions::test_apply_to_mortality
+  test_ecological_realism.py:589: PytestWarning: The test <Function test_apply_to_mortality> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestHelperFunctions::test_apply_to_reproduction
+  test_ecological_realism.py:604: PytestWarning: The test <Function test_apply_to_reproduction> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestHelperFunctions::test_get_vertical_niche_competition
+  test_ecological_realism.py:618: PytestWarning: The test <Function test_get_vertical_niche_competition> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestHelperFunctions::test_get_spatial_predation_efficiency
+  test_ecological_realism.py:630: PytestWarning: The test <Function test_get_spatial_predation_efficiency> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_ecological_realism.py::TestHelperFunctions::test_get_assimilation_efficiency
+  test_ecological_realism.py:642: PytestWarning: The test <Function test_get_assimilation_efficiency> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestPipelineBuilder::test_build_pipeline
+  test_pipeline.py:198: PytestWarning: The test <Function test_build_pipeline> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestStageLoader::test_list_available_stages
+  test_pipeline.py:221: PytestWarning: The test <Function test_list_available_stages> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestStageLoader::test_load_stages_for_mode
+  test_pipeline.py:230: PytestWarning: The test <Function test_load_stages_for_mode> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestStageLoader::test_get_dependency_graph
+  test_pipeline.py:245: PytestWarning: The test <Function test_get_dependency_graph> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestStageRegistry::test_registered_stages
+  test_pipeline.py:260: PytestWarning: The test <Function test_registered_stages> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestStageRegistry::test_create_stage_instance
+  test_pipeline.py:273: PytestWarning: The test <Function test_create_stage_instance> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestDefaultStages::test_get_default_stages
+  test_pipeline.py:289: PytestWarning: The test <Function test_get_default_stages> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_pipeline.py::TestDefaultStages::test_default_stages_have_execute
+  test_pipeline.py:298: PytestWarning: The test <Function test_default_stages_have_execute> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestPressureTensorStage::test_stage_name
+  test_tensor_stages.py:86: PytestWarning: The test <Function test_stage_name> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestTensorEcologyStage::test_stage_order
+  test_tensor_stages.py:105: PytestWarning: The test <Function test_stage_order> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestTensorEcologyStage::test_stage_name_contains_ecology
+  test_tensor_stages.py:110: PytestWarning: The test <Function test_stage_name_contains_ecology> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestTensorMetricsStage::test_stage_name
+  test_tensor_stages.py:148: PytestWarning: The test <Function test_stage_name> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestTensorStateSyncStage::test_stage_name
+  test_tensor_stages.py:166: PytestWarning: The test <Function test_stage_name> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_get_tensor_stages_returns_list
+  test_tensor_stages.py:186: PytestWarning: The test <Function test_get_tensor_stages_returns_list> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_get_tensor_stages_contains_ecology
+  test_tensor_stages.py:192: PytestWarning: The test <Function test_get_tensor_stages_contains_ecology> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_get_tensor_stages_contains_metrics
+  test_tensor_stages.py:198: PytestWarning: The test <Function test_get_tensor_stages_contains_metrics> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_get_minimal_tensor_stages
+  test_tensor_stages.py:204: PytestWarning: The test <Function test_get_minimal_tensor_stages> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_stages_have_correct_order
+  test_tensor_stages.py:214: PytestWarning: The test <Function test_stages_have_correct_order> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+test_tensor_stages.py::TestGetTensorStages::test_no_legacy_stages
+  test_tensor_stages.py:222: PytestWarning: The test <Function test_no_legacy_stages> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED app/simulation/tests/test_ecological_realism.py::TestEcologicalRealismStage::test_stage_dependency
+FAILED app/simulation/tests/test_pipeline.py::TestStageRegistry::test_registered_stages
+2 failed, 73 passed, 44 warnings in 0.20s

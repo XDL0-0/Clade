@@ -1,0 +1,5 @@
+[Taichi] version 1.7.4, llvm 15.0.4, commit b4b956fd, linux, python 3.12.13
+[Taichi] Starting on arch=cuda
+first_pending: True is_running_before_second: True
+second_response: 400 模拟已在运行中
+first_still_pending: True is_running_after_second: False
