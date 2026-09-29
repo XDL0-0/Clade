@@ -62,6 +62,7 @@ class SimulationSessionManager:
     
     def __init__(self) -> None:
         self._running: bool = False
+        self._running_token: object | None = None
         self._current_save_name: str | None = None
         self._autosave_counter: int = 0
         self._pressure_queue: list[list[Any]] = []
@@ -96,13 +97,34 @@ class SimulationSessionManager:
             return self._running
     
     def set_running(self, running: bool) -> None:
-        """设置模拟运行状态"""
+        """兼容旧调用者；持有运行令牌时只能通过 release_running 释放。"""
         with self._lock:
+            if self._running_token is not None:
+                return
             self._running = running
             if running:
                 logger.info("[会话] 模拟开始运行")
             else:
                 logger.info("[会话] 模拟停止运行")
+
+    def acquire_running(self) -> object | None:
+        """原子获取运行权；忙碌时返回 None，令牌仅由持有者保存。"""
+        with self._lock:
+            if self._running:
+                return None
+            token = object()
+            self._running_token = token
+            self._running = True
+            return token
+
+    def release_running(self, token: object) -> bool:
+        """仅当前令牌可释放运行权；过期或无关令牌不影响新任务。"""
+        with self._lock:
+            if self._running_token is None or token is not self._running_token:
+                return False
+            self._running_token = None
+            self._running = False
+            return True
     
     @contextmanager
     def simulation_lock(self) -> Generator[None, None, None]:
@@ -113,16 +135,14 @@ class SimulationSessionManager:
         Raises:
             RuntimeError: 如果模拟已在运行
         """
-        with self._lock:
-            if self._running:
-                raise RuntimeError("模拟已在运行中")
-            self._running = True
+        token = self.acquire_running()
+        if token is None:
+            raise RuntimeError("模拟已在运行中")
         
         try:
             yield
         finally:
-            with self._lock:
-                self._running = False
+            self.release_running(token)
     
     # ========== 存档状态 ==========
     

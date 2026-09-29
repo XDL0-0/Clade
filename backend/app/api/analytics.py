@@ -163,20 +163,21 @@ async def abort_current_tasks(
     session: 'SimulationSessionManager' = Depends(get_session),
     container: 'ServiceContainer' = Depends(get_container),
 ) -> dict:
-    """重置 AI 连接，解除卡住状态"""
+    """请求重置 AI HTTP 连接；不保证中止正在执行的回合或同步任务。"""
     model_router = container.model_router
     
     session.request_abort()
     
-    # 重置 HTTP 客户端
-    if hasattr(model_router, 'reset_client'):
-        model_router.reset_client()
-    
-    session.clear_abort()
+    try:
+        if not hasattr(model_router, 'reset_client'):
+            return {"success": False, "message": "当前 AI 路由不支持连接重置"}
+        await model_router.reset_client()
+    finally:
+        session.clear_abort()
     
     return {
         "success": True,
-        "message": "已重置 AI 连接",
+        "message": "已重置 AI HTTP 连接；运行中的回合可能继续，结束后才会解除运行状态",
     }
 
 

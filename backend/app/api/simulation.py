@@ -297,15 +297,12 @@ async def run_turns(
     from ..services.system.divine_energy import energy_service
     
     start_time = time_module.time()
+    run_token = session.acquire_running()
+    if run_token is None:
+        raise HTTPException(status_code=400, detail="模拟已在运行中")
     
     try:
         logger.info(f"[推演开始] 回合数: {command.rounds}, 压力数: {len(command.pressures)}")
-        
-        # 检查是否已在运行
-        if session.is_running:
-            raise HTTPException(status_code=400, detail="模拟已在运行中")
-        
-        session.set_running(True)
         
         # 清空事件队列中的旧事件
         session.get_pending_events(max_count=9999)
@@ -339,7 +336,6 @@ async def run_turns(
                 current_energy = energy_service.get_state().current
                 
                 if current_energy < total_cost:
-                    session.set_running(False)
                     raise HTTPException(
                         status_code=400,
                         detail=f"能量不足！施加压力需要 {total_cost} 能量，当前只有 {current_energy}"
@@ -382,8 +378,6 @@ async def run_turns(
         session.push_event("complete", f"推演完成！生成了 {len(reports)} 个报告", "系统")
         session.push_event("turn_complete", "回合推演完成", "系统")
         
-        session.set_running(False)
-        
         # 后台执行自动保存
         latest_turn = reports[-1].turn_index if reports else 0
         background_tasks.add_task(
@@ -409,7 +403,6 @@ async def run_turns(
             return JSONResponse(content={"error": str(e), "reports_count": len(reports)})
         
     except HTTPException:
-        session.set_running(False)
         raise
     except Exception as e:
         elapsed = time_module.time() - start_time
@@ -417,9 +410,10 @@ async def run_turns(
         logger.error(traceback.format_exc())
         
         session.push_event("error", f"推演失败: {str(e)}", "错误", force=True)
-        session.set_running(False)
         
         raise HTTPException(status_code=500, detail=f"推演执行失败: {str(e)}")
+    finally:
+        session.release_running(run_token)
 
 
 @router.get("/history", response_model=list[TurnReport])
