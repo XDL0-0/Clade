@@ -93,3 +93,15 @@
 - Known issues：这是存储+Mock AI压力测试，不是完整生态长跑；尚未完成100/500/1000 turn多营养级模拟验收。对象层当前需POSIX，导入无覆盖发布需Linux renameat2，不支持的平台明确失败，未声称Windows可用。未提供自动GC/retention；对象崩溃可产生安全的未引用块。新版尚未接管默认UI/旧全局引擎。
 - Save compatibility：JSON/gzip旧fixture读写测试持续通过；新导入从保存turn开始可回放，缺失过去世界无法恢复；新模型继续运行必须显式校验model/stage版本。
 - Next：独立SimulationEngineV2协调器，global climate pressure公式+旧wrapper语义精确对照，再迁移地质closure和空间拓扑。
+
+## Step 6a — 气候标量等价迁移与新引擎协调器
+
+- New files：v2/engine.py、v2/stages/environment/{climate,__init__}.py、v2/stages/__init__.py；tests/v2/{test_engine,test_climate_stage}.py。
+- Removed legacy code：无。LegacyClimatePressureStage只迁移旧global temperature/sea level切片，默认旧引擎和tile温度计算均未改。
+- 回归：保留旧公式的算术顺序、极冷无上限项、温室cap，以及wrapper空modifier no-op与0.01阈值。kernel可直接调用的空输入行为和stage行为分别测试；没有偷渡全图温度广播。
+- 引擎：TurnCommand完整版本/幂等输入；历史snapshot+持久seed→pure pipeline→冻结叙事job计划→原子commit；model/stage/RNG manifest不匹配拒绝；planner看不到非确定性耗时。
+- Tests passed：气候129项（含78组旧函数精确对照）+引擎17项；后端全量1011 passed、0 skipped、9既有warnings。迁移39文件strict gate通过。包含此前追加的profile一致性1项，数量不能与历史总数叠加。
+- Known issues：这不包含tectonic阶段机/地块气候/水循环/biome全链。旧hydrology是view-only且阈值阻止正常累积；新水循环和统一拓扑会使用独立reference模型版本，详见ENVIRONMENT_MIGRATION_MAP。
+- Performance impact：单kernel纯算术；未测完整环境负载；引擎每次重试可纯重算固定旧snapshot，由store保证幂等发布。
+- Save compatibility：旧读写/新导入全通过；未知model/stage版本不会静默继续运行。
+- Next：明确新参考生态单位与拓扑，迁移环境闭包；资源旧公式oracle与新闭合能量模型分开验收。
