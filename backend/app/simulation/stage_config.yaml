@@ -56,12 +56,18 @@ modes:
       - name: parse_pressures
         enabled: true
         order: 10
-      - name: pressure_tensor
-        enabled: true
-        order: 11
       - name: map_evolution
         enabled: true
         order: 20
+      - name: tectonic_movement
+        enabled: true
+        order: 25
+      - name: long_term_climate
+        enabled: true
+        order: 27
+      - name: pressure_tensor
+        enabled: true
+        order: 29
       - name: fetch_species
         enabled: true
         order: 30
@@ -71,6 +77,9 @@ modes:
       - name: tiering_and_niche
         enabled: true
         order: 40
+      - name: ecological_realism
+        enabled: true
+        order: 45
       - name: tensor_state_init
         enabled: true
         order: 49
@@ -101,6 +110,9 @@ modes:
       - name: build_report
         enabled: true
         order: 140
+      - name: classic_feedback
+        enabled: true
+        order: 145
       - name: save_map_snapshot
         enabled: true
         order: 150
@@ -126,15 +138,18 @@ modes:
       - name: parse_pressures
         enabled: true
         order: 10
-      - name: pressure_tensor
-        enabled: true
-        order: 11
       - name: map_evolution
         enabled: true
         order: 20
       - name: tectonic_movement
         enabled: true
         order: 25
+      - name: long_term_climate
+        enabled: true
+        order: 27
+      - name: pressure_tensor
+        enabled: true
+        order: 29
       - name: fetch_species
         enabled: true
         order: 30
@@ -144,6 +159,9 @@ modes:
       - name: tiering_and_niche
         enabled: true
         order: 40
+      - name: ecological_realism
+        enabled: true
+        order: 45
       - name: tensor_state_init
         enabled: true
         order: 49
@@ -186,6 +204,9 @@ modes:
       - name: build_report
         enabled: true
         order: 140
+      - name: classic_feedback
+        enabled: true
+        order: 145
       - name: save_map_snapshot
         enabled: true
         order: 150

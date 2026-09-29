@@ -1309,11 +1309,11 @@ class ReproductionService:
                 logger.debug(f"[生态拟真] {species.common_name} 环境波动修正: ×{env_mod:.2f}")
             
             # 互利共生收益（提高繁殖率）
-            mutualism_benefits = eco_realism_data.get("mutualism_benefits", {})
-            mutualism = mutualism_benefits.get(lineage_code, 0.0)
-            if mutualism > 0:
-                eco_repro_modifier *= (1.0 + mutualism)
-                logger.debug(f"[生态拟真] {species.common_name} 共生收益修正: ×{1.0 + mutualism:.2f}")
+            if "mutualism_reproduction_modifiers" in eco_realism_data:
+                eco_repro_modifier *= eco_realism_data["mutualism_reproduction_modifiers"].get(lineage_code, 1.0)
+            else:
+                mutualism = eco_realism_data.get("mutualism_benefits", {}).get(lineage_code, 0.0)
+                eco_repro_modifier *= 1.0 + max(0.0, mutualism)
             
             growth_multiplier *= eco_repro_modifier
         

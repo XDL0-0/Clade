@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -70,9 +71,9 @@ class EcologicalRealismStage(BaseStage):
     """
     
     def __init__(self):
-        # 在 tiering_and_niche (StageOrder.TIERING_AND_NICHE=180) 之后
-        # 在 preliminary_mortality (StageOrder.PRELIMINARY_MORTALITY=200) 之前
-        super().__init__(order=190, name="生态拟真")
+        # 在物种分层与生态位 (40) 之后、经典张量生态 (49) 之前，
+        # 确保本回合共生/疾病/适应修正进入实际生态计算。
+        super().__init__(order=45, name="生态拟真")
         self._logger = logging.getLogger(__name__)
     
     def get_dependency(self) -> StageDependency:
@@ -88,10 +89,28 @@ class EcologicalRealismStage(BaseStage):
         """执行生态拟真计算"""
         # 获取生态拟真服务
         eco_service = getattr(engine, 'ecological_realism_service', None)
+        from ..services.ecology.mutualism import build_mutualism_data
+
+        config = getattr(eco_service, "_config", None)
+        mutualism_data = build_mutualism_data(
+            ctx.species_batch,
+            ctx.all_habitats,
+            enabled=getattr(config, "enable_mutualism", True),
+            benefit=getattr(config, "mutualism_benefit", 0.1),
+            penalty=getattr(config, "mutualism_penalty", 0.15),
+        )
+        # Clear turn-local data even for empty/disabled worlds and old saves.
+        ctx.plugin_data["ecological_realism"] = mutualism_data
         if eco_service is None:
             self._logger.warning("[生态拟真] 服务未注入，跳过生态拟真计算")
             return
         
+        # Service instances survive save switches. Only static anchor vectors
+        # may survive a turn; lineage-keyed vectors and links must not.
+        eco_service._mutualism_network.clear()
+        eco_service._mutualism_last_update = -1
+        eco_service._anchors.clear_species_cache()
+        self._track_environment(ctx, eco_service)
         results = EcologicalRealismResults()
         
         # 获取所有存活物种
@@ -109,14 +128,6 @@ class EcologicalRealismStage(BaseStage):
             warmup_count = eco_service.warmup_species_vectors(alive_species, force_refresh=True)
             if warmup_count > 0:
                 self._logger.info(f"[生态拟真] 批量预热 {warmup_count} 个物种向量完成")
-        
-        # 1. 追踪环境变化（用于适应滞后）
-        self._track_environment(ctx, eco_service)
-        
-        # 2. 更新互利共生网络
-        results.mutualism_links = eco_service.discover_mutualism_links(
-            alive_species, ctx.turn_index
-        )
         
         # 3. 计算各物种的生态学修正
         for species in alive_species:
@@ -150,10 +161,6 @@ class EcologicalRealismStage(BaseStage):
                 species
             )
             
-            # 互利共生收益
-            results.mutualism_benefits[code] = eco_service.get_mutualism_benefit(
-                species, alive_species
-            )
         
         # 4. 计算物种对之间的交互修正
         species_tiles = self._get_species_tiles(ctx)
@@ -206,10 +213,12 @@ class EcologicalRealismStage(BaseStage):
             "mutualism_benefits": results.mutualism_benefits,
         }
         
+        ctx.plugin_data["ecological_realism"].update(mutualism_data)
+
         # 记录统计
         allee_affected = sum(1 for r in results.allee_results.values() if r.is_below_mvp)
         disease_affected = sum(1 for r in results.disease_results.values() if r.disease_pressure > 0.1)
-        mutualism_count = len(results.mutualism_links)
+        mutualism_count = len(mutualism_data["mutualism_links"])
         
         self._logger.info(
             f"[生态拟真] 完成: "
@@ -229,7 +238,26 @@ class EcologicalRealismStage(BaseStage):
         ctx: 'SimulationContext',
         eco_service: 'EcologicalRealismService',
     ) -> None:
-        """追踪环境变化"""
+        """从当前存档恢复短历史并记录本回合，防止服务单例串档。"""
+        map_state = ctx.current_map_state
+        extra = dict(getattr(map_state, "extra_data", None) or {})
+        saved = extra.get("classic_ecology_environment_history", [])
+        history_by_turn = {}
+        if isinstance(saved, list):
+            for row in saved:
+                if not isinstance(row, dict):
+                    continue
+                try:
+                    turn = int(row["turn"])
+                    values = {key: float(row[key]) for key in ("temp", "humidity", "resources")}
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    continue
+                # Retrying a turn replaces its sample; loading an older save
+                # discards future samples. Missing legacy history starts empty.
+                if 0 <= turn < ctx.turn_index and all(math.isfinite(value) for value in values.values()):
+                    history_by_turn[turn] = {"turn": turn, **values}
+        window = max(1, int(eco_service._config.env_change_tracking_window))
+        eco_service._env_history = [history_by_turn[turn] for turn in sorted(history_by_turn)][-window:]
         # 计算全局平均温度和湿度
         if not ctx.all_tiles:
             return
@@ -252,6 +280,11 @@ class EcologicalRealismStage(BaseStage):
                 total_humidity / count,
                 total_resources / count / 1000.0,  # 归一化
             )
+            if map_state is not None:
+                # Assign a fresh JSON object so normal MapState persistence
+                # includes this history along with the world's climate state.
+                extra["classic_ecology_environment_history"] = [dict(row) for row in eco_service._env_history[-window:]]
+                map_state.extra_data = extra
     
     def _get_carrying_capacity(
         self,
@@ -396,9 +429,10 @@ def apply_ecological_realism_to_mortality(
     modified_mortality += adaptation_penalty
     
     # 3. 应用互利共生收益（负值减少死亡率）
-    mutualism_benefits = eco_data.get("mutualism_benefits", {})
-    mutualism = mutualism_benefits.get(species_code, 0.0)
-    modified_mortality -= mutualism  # 正收益减少死亡率，负收益（惩罚）增加死亡率
+    if "mutualism_mortality_modifiers" in eco_data:
+        modified_mortality += eco_data["mutualism_mortality_modifiers"].get(species_code, 0.0)
+    else:
+        modified_mortality -= eco_data.get("mutualism_benefits", {}).get(species_code, 0.0)
     
     return max(0.01, min(0.95, modified_mortality))
 
@@ -438,12 +472,13 @@ def apply_ecological_realism_to_reproduction(
     modified_rate *= env_mod
     
     # 3. 应用互利共生收益（正收益提高繁殖率）
-    mutualism_benefits = eco_data.get("mutualism_benefits", {})
-    mutualism = mutualism_benefits.get(species_code, 0.0)
-    if mutualism > 0:
-        modified_rate *= (1.0 + mutualism)
-    
-    return max(0.1, modified_rate)
+    if "mutualism_reproduction_modifiers" in eco_data:
+        modified_rate *= eco_data["mutualism_reproduction_modifiers"].get(species_code, 1.0)
+    else:
+        mutualism = eco_data.get("mutualism_benefits", {}).get(species_code, 0.0)
+        if mutualism > 0:
+            modified_rate *= 1.0 + mutualism
+    return max(0.0, modified_rate)
 
 
 def get_vertical_niche_competition(

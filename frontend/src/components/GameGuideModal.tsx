@@ -109,13 +109,13 @@ function WelcomePage() {
         <div className="dev-notice-content">
           <strong>游戏仍在开发中</strong>
           <p>
-            Clade 目前处于 <strong>Beta 测试阶段</strong>，部分功能尚未完善或正在积极开发中：
+            Clade 目前处于 <strong>Beta 开发阶段</strong>。经典模式中的这些系统会随回合共同演化：
           </p>
           <ul>
-            <li><strong>地质演变系统</strong>：板块漂移、造山运动等功能已设计但尚未真正启用</li>
-            <li><strong>气候长期变化</strong>：冰河期循环、温室效应等系统仍在调试</li>
-            <li><strong>互利共生网络</strong>：传粉、种子散布等共生关系正在开发</li>
-            <li><strong>平衡性调整</strong>：张量系统参数、死亡率公式仍在持续迭代</li>
+            <li><strong>地质演变系统</strong>：板块带动地壳漂移，碰撞造山、张裂沉降和火山活动改变地图与栖息地</li>
+            <li><strong>气候长期变化</strong>：冰期、温室效应和海平面相互影响，改变各地的温度与湿度</li>
+            <li><strong>互利共生网络</strong>：相遇的传粉者和开花植物互相受益，果食动物帮助植物向邻近地块扩散</li>
+            <li><strong>种群平衡</strong>：保留逐地块张量模拟，统一结算死亡、繁殖和迁徙，避免重复扣除或凭空补回种群</li>
           </ul>
           <p className="dev-notice-footer">
             感谢你的参与！如遇到问题或有建议，欢迎向口袋反馈。
@@ -216,7 +216,7 @@ function TimePage() {
       <div className="guide-intro">
         <h3>回合与地质时间</h3>
         <p>
-          游戏以<strong>回合</strong>为单位推进。每个回合代表的不是一天、一年，而是<strong>数十万年到数百万年</strong>的地质时间。
+          游戏以<strong>回合</strong>为单位推进。每个回合代表的不是一天、一年，而是<strong>数十万年到数千万年</strong>的地质时间。
           这个时间尺度足够让显著的演化发生。
         </p>
         <ul className="guide-list">
@@ -250,7 +250,7 @@ function TimePage() {
           <div className="sequence-number">1</div>
           <div className="sequence-content">
             <strong>环境变迁</strong>
-            <span>气候波动（温度、降水随机漂变）、海平面升降、（未来：板块漂移）</span>
+            <span>板块漂移与造山、长期气候变化、冰盖与海平面升降</span>
           </div>
         </div>
         <div className="sequence-item">
@@ -401,22 +401,22 @@ function EnvironmentPage() {
         <h3>环境变化</h3>
         <p>环境不是静态的，它会随时间发生变化：</p>
         <ul className="guide-list">
-          <li><strong>气候波动</strong>：温度和降水会小幅随机变化，模拟自然气候变率</li>
+          <li><strong>气候波动</strong>：长期周期、温室气体和地质活动共同改变温度，湿度随之响应</li>
           <li><strong>海平面变化</strong>：全球温度影响冰川体积，进而影响海平面</li>
           <li><strong>极端事件</strong>：火山爆发、陨石撞击等会导致剧烈的环境改变</li>
         </ul>
       </div>
 
       <div className="guide-intro">
-        <h3>板块构造（规划中）</h3>
+        <h3>板块构造</h3>
         <p>
-          <em>注：此功能已设计但尚未完全启用。</em>
+          板块位置、地幔活动和火山状态会保存在当前经典世界中。
         </p>
-        <p>完整启用后，大陆会真实地漂移：</p>
+        <p>大陆随回合漂移，实际改变地图海拔、海陆边界和物种的相遇机会：</p>
         <ul className="guide-list">
           <li><strong>大陆分裂</strong>：原本连续的种群被隔离，加速异域物种分化</li>
           <li><strong>大陆碰撞</strong>：原本隔离的物种相遇，引发竞争、捕食或杂交</li>
-          <li><strong>造山运动</strong>：板块碰撞处山脉隆起，形成地理屏障和气候阴影</li>
+          <li><strong>造山运动</strong>：板块碰撞处山脉隆起，形成地理屏障，海拔变化也会改变当地温度</li>
           <li><strong>海沟/火山岛弧</strong>：板块俯冲处形成深海沟和火山岛链</li>
         </ul>
       </div>
@@ -1153,7 +1153,7 @@ function AdvancedPage() {
         <div className="module-card">
           <div className="module-header">
             <Heart size={18} />
-            <strong>互利共生网络（规划中）</strong>
+            <strong>互利共生网络</strong>
           </div>
           <p>
             物种间不只有竞争和捕食，还有<strong>互利共生</strong>关系：
@@ -1161,19 +1161,19 @@ function AdvancedPage() {
           <ul>
             <li><strong>传粉网络</strong>：传粉者-开花植物的相互依赖关系</li>
             <li><strong>种子散布</strong>：果食动物帮助植物传播种子</li>
-            <li><strong>清洁共生</strong>：清洁鱼/鸟与大型动物的互惠关系</li>
-            <li><strong>菌根网络</strong>：真菌与植物根系的营养交换</li>
+            <li><strong>共生依赖</strong>：已有明确依赖关系的物种，需要数量足够且能接触到的伙伴</li>
+            <li><strong>能力与分布</strong>：器官、传粉或食果能力、当地数量和栖息地重叠共同决定关系强弱</li>
           </ul>
           <div className="module-effect">
             <span className="effect-label">游戏表现</span>
-            <span>共生伙伴灭绝时，依赖方的繁殖或存活会受到惩罚（功能开发中）</span>
+            <span>伙伴短缺会削弱繁殖或食物供给；强依赖伙伴消失时，存活也会受影响。回合总结可查看双方物种。</span>
           </div>
         </div>
 
         <div className="module-card">
           <div className="module-header">
             <Clock size={18} />
-            <strong>适应滞后（规划中）</strong>
+            <strong>适应滞后</strong>
           </div>
           <p>
             物种的适应不是即时的——当环境变化时，存在<strong>适应延迟</strong>：
@@ -1186,7 +1186,7 @@ function AdvancedPage() {
           </ul>
           <div className="module-effect">
             <span className="effect-label">游戏表现</span>
-            <span>急剧的环境变化（如天灾后）会对物种造成额外的"滞后死亡率"（功能开发中）</span>
+            <span>急剧的环境变化（如天灾后）会对物种造成额外的适应压力，变化历史会随经典存档保存</span>
           </div>
         </div>
 
@@ -1217,7 +1217,7 @@ function AdvancedPage() {
           真实的生态系统充满随机性。Clade 通过以下方式模拟环境的<strong>不可预测性</strong>：
         </p>
         <ul className="guide-list">
-          <li><strong>气候波动</strong>：温度、降水每回合都有小幅随机变化</li>
+          <li><strong>气候波动</strong>：温室气体、冰盖和周期变化叠加，影响各地温湿度</li>
           <li><strong>好年/坏年</strong>：NPP 产出在平均值附近波动</li>
           <li><strong>随机灾害</strong>：即使玩家不主动触发，也有小概率发生自然灾害</li>
           <li><strong>人口统计随机性</strong>：小种群的出生/死亡具有更大的随机波动</li>
@@ -1427,4 +1427,3 @@ export function GameGuideModal({ isOpen, onClose }: Props) {
     </div>
   );
 }
-

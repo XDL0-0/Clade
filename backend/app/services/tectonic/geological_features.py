@@ -48,6 +48,7 @@ class GeologicalFeatureDistributor:
         self.hotspots: list[tuple[int, int]] = []  # (x, y)
         self.trenches: list[GeologicalFeature] = []
         self.ridges: list[GeologicalFeature] = []
+        self.rift_lakes: list[GeologicalFeature] = []
         
         # 名称生成器状态
         self._used_names: set[str] = set()
@@ -538,4 +539,3 @@ class GeologicalFeatureDistributor:
             plate_id=volcano.plate_id,
             related_feature_id=volcano.id,
         )
-

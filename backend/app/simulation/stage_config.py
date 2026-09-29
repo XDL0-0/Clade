@@ -844,8 +844,6 @@ def _register_default_stages() -> None:
     from .stages import (
         InitStage,
         ParsePressuresStage,
-        MapEvolutionStage,
-        TectonicMovementStage,
         FetchSpeciesStage,
         FoodWebStage,
         TieringAndNicheStage,
@@ -879,11 +877,18 @@ def _register_default_stages() -> None:
         TensorMetricsStage,
     )
     
+    from .classic_world_stages import ClassicMapEvolutionStage, ClassicTectonicStage, ClassicClimateStage
+    from .ecological_realism_stage import EcologicalRealismStage
+    from .classic_feedback import ClassicFeedbackStage
+
     # 注册核心数据阶段
     stage_registry.register("init", InitStage)
     stage_registry.register("parse_pressures", ParsePressuresStage)
-    stage_registry.register("map_evolution", MapEvolutionStage)
-    stage_registry.register("tectonic_movement", TectonicMovementStage)
+    stage_registry.register("map_evolution", ClassicMapEvolutionStage)
+    stage_registry.register("tectonic_movement", ClassicTectonicStage)
+    stage_registry.register("long_term_climate", ClassicClimateStage)
+    stage_registry.register("ecological_realism", EcologicalRealismStage)
+    stage_registry.register("classic_feedback", ClassicFeedbackStage)
     stage_registry.register("fetch_species", FetchSpeciesStage)
     stage_registry.register("food_web", FoodWebStage)
     stage_registry.register("tiering_and_niche", TieringAndNicheStage)

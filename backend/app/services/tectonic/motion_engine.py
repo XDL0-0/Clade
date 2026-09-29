@@ -12,6 +12,7 @@ from typing import Sequence
 import numpy as np
 
 from .config import TECTONIC_CONFIG, BOUNDARY_TYPE_CODES
+from .crust_transport import CrustTransport
 from .models import (
     Plate, PlateType, BoundaryType, MotionPhase,
     SimpleTile, TerrainChange, TectonicEvent
@@ -34,6 +35,10 @@ class PlateMotionEngine:
         self.config = TECTONIC_CONFIG["motion"]
         self.terrain_config = TECTONIC_CONFIG["terrain"]
         self.event_config = TECTONIC_CONFIG["events"]
+        self.transport = CrustTransport(width, height)
+        self.time_scale = 1.0
+        self.rng = random.Random()
+        self._boundary_influence: dict[int, BoundaryType] = {}
     
     def step(
         self,
@@ -57,12 +62,15 @@ class PlateMotionEngine:
             (地形变化列表, 地质事件列表, 压力反馈)
         """
         pressure_modifiers = pressure_modifiers or {}
+        before = {t.id: (t.elevation, t.temperature) for t in tiles}
         
         # === 1. 应用压力到板块运动 ===
         self._apply_pressure_effects(plates, pressure_modifiers)
         
         # === 2. 更新板块速度（衰减+纬度效应）===
         self._update_velocities(plates)
+        self.transport.advance(plates, plate_map, tiles, self.time_scale)
+        drifted = {t.id for t in tiles if abs(t.elevation - before[t.id][0]) > 1e-8}
         
         # === 3. 检测边界类型 ===
         boundary_info = self._detect_boundaries(plates, plate_map, tiles)
@@ -76,6 +84,25 @@ class PlateMotionEngine:
         events = self._generate_events(
             plates, plate_map, tiles, boundary_info, pressure_modifiers, turn_index
         )
+        # Volcanism deposits rock as well as producing a narrative event.
+        by_id = {tile.id: tile for tile in tiles}
+        for event in events:
+            if event.event_type == "volcanic_eruption":
+                tile = by_id[event.tile_id]
+                uplift = event.magnitude * 8.0 * self.time_scale
+                old_land_elevation = max(0.0, tile.elevation)
+                tile.elevation = min(9000.0, tile.elevation + uplift)
+                tile.temperature -= (max(0.0, tile.elevation) - old_land_elevation) * 0.006
+        causes = {change.tile_id: change.cause for change in terrain_changes}
+        causes.update({tid: "plate_drift" for tid in drifted})
+        causes.update({event.tile_id: "volcanic" for event in events if event.event_type == "volcanic_eruption"})
+        terrain_changes = [TerrainChange(
+            tile_id=t.id, x=t.x, y=t.y,
+            old_elevation=before[t.id][0], new_elevation=t.elevation,
+            cause=causes.get(t.id, "plate_drift"),
+            old_temperature=before[t.id][1], new_temperature=t.temperature,
+        ) for t in tiles if abs(t.elevation - before[t.id][0]) > 1e-8
+            or abs(t.temperature - before[t.id][1]) > 1e-8]
         
         # === 6. 更新板块状态 ===
         self._update_plate_states(plates, boundary_info)
@@ -171,13 +198,13 @@ class PlateMotionEngine:
                 plate.velocity_y *= scale
             elif speed < cfg["min_velocity"]:
                 # 随机给予一个小的扰动
-                plate.velocity_x += random.uniform(-0.02, 0.02)
-                plate.velocity_y += random.uniform(-0.01, 0.01)
+                plate.velocity_x += self.rng.uniform(-0.02, 0.02)
+                plate.velocity_y += self.rng.uniform(-0.01, 0.01)
             
             # 更新旋转中心（模拟板块漂移）
-            plate.rotation_center_x = (plate.rotation_center_x + plate.velocity_x) % self.width
-            plate.rotation_center_y = max(1, min(self.height - 2, 
-                                                  plate.rotation_center_y + plate.velocity_y))
+            plate.rotation_center_x = (plate.rotation_center_x + plate.velocity_x * self.time_scale) % self.width
+            plate.rotation_center_y = max(0, min(self.height - 1,
+                                                  plate.rotation_center_y + plate.velocity_y * self.time_scale))
     
     def _detect_boundaries(
         self,
@@ -229,7 +256,10 @@ class PlateMotionEngine:
                     
                     # 更新地块边界类型（取最高优先级）
                     current = tile_boundaries.get(tile.id, BoundaryType.INTERNAL)
-                    if boundary_type.value > current.value:
+                    priority = {BoundaryType.INTERNAL: 0, BoundaryType.TRANSFORM: 1,
+                                BoundaryType.DIVERGENT: 2, BoundaryType.CONVERGENT: 3,
+                                BoundaryType.SUBDUCTION: 4}
+                    if priority[boundary_type] > priority[current]:
                         tile_boundaries[tile.id] = boundary_type
                     
                     # 更新板块邻接矩阵
@@ -243,9 +273,17 @@ class PlateMotionEngine:
                 tile.distance_to_boundary = 0
             else:
                 tile.boundary_type = BoundaryType.INTERNAL
+                tile.distance_to_boundary = self.width + self.height
         
         # 计算到边界的距离
         self._compute_boundary_distances(tiles, boundary_tiles)
+        for tile in tiles:
+            influence = self._boundary_influence.get(tile.id, BoundaryType.INTERNAL)
+            risk = {BoundaryType.INTERNAL: 0.0, BoundaryType.TRANSFORM: 0.55,
+                    BoundaryType.DIVERGENT: 0.3, BoundaryType.CONVERGENT: 0.65,
+                    BoundaryType.SUBDUCTION: 0.85}[influence]
+            tile.earthquake_risk = risk * math.exp(-tile.distance_to_boundary / 3.0)
+            tile.tectonic_activity = risk * math.exp(-tile.distance_to_boundary / 5.0)
         
         return {
             "tile_boundaries": tile_boundaries,
@@ -293,10 +331,12 @@ class PlateMotionEngine:
         boundary_tiles: list[int]
     ) -> None:
         """计算每个地块到最近边界的距离"""
+        self._boundary_influence = {}
         if not boundary_tiles:
             return
         
         tile_map = {t.id: t for t in tiles}
+        self._boundary_influence = {tid: tile_map[tid].boundary_type for tid in boundary_tiles}
         boundary_set = set(boundary_tiles)
         
         # BFS 计算距离
@@ -319,6 +359,7 @@ class PlateMotionEngine:
                     neighbor_id = ny * self.width + nx
                     if neighbor_id not in visited:
                         visited.add(neighbor_id)
+                        self._boundary_influence[neighbor_id] = self._boundary_influence[tile_id]
                         queue.append((neighbor_id, dist + 1))
     
     def _compute_terrain_changes(
@@ -345,6 +386,8 @@ class PlateMotionEngine:
         
         for tile in tiles:
             boundary_type = tile.boundary_type
+            if boundary_type == BoundaryType.INTERNAL:
+                boundary_type = self._boundary_influence.get(tile.id, boundary_type)
             dist = tile.distance_to_boundary
             
             if boundary_type == BoundaryType.INTERNAL and dist > cfg["boundary_effect_radius"]:
@@ -405,10 +448,10 @@ class PlateMotionEngine:
                 delta -= erosion
             
             # 应用压力加成
-            delta *= elevation_boost
+            delta *= elevation_boost * self.time_scale
             
             # 限制单回合变化
-            max_change = cfg["max_elevation_change"]
+            max_change = cfg["max_elevation_change"] * self.time_scale
             delta = max(-max_change, min(max_change, delta))
             
             if abs(delta) > 0.001:
@@ -461,10 +504,10 @@ class PlateMotionEngine:
             old_elevation = tile.elevation
             old_temperature = tile.temperature
             
-            tile.elevation += delta
+            tile.elevation = max(-11000.0, min(9000.0, tile.elevation + delta))
             
             # 更新温度（海拔每变化100米，温度变化0.6°C）
-            temp_change = (delta / 100) * temp_per_100m
+            temp_change = ((max(0.0, tile.elevation) - max(0.0, old_elevation)) / 100) * temp_per_100m
             tile.temperature += temp_change
             
             changes.append(TerrainChange(
@@ -498,14 +541,14 @@ class PlateMotionEngine:
         volcano_boost = 1.0
         
         if "earthquake_period" in pressure_modifiers:
-            earthquake_boost = TECTONIC_CONFIG["pressure_effects"]["earthquake_period"].get(
+            earthquake_boost = 1 + (TECTONIC_CONFIG["pressure_effects"]["earthquake_period"].get(
                 "earthquake_probability_boost", 1.0
-            ) * (pressure_modifiers["earthquake_period"] / 10)
+            ) - 1) * (pressure_modifiers["earthquake_period"] / 10)
         
         if "volcanic_eruption" in pressure_modifiers:
-            volcano_boost = TECTONIC_CONFIG["pressure_effects"]["volcanic_eruption"].get(
+            volcano_boost = 1 + (TECTONIC_CONFIG["pressure_effects"]["volcanic_eruption"].get(
                 "eruption_probability_boost", 1.0
-            ) * (pressure_modifiers["volcanic_eruption"] / 10)
+            ) - 1) * (pressure_modifiers["volcanic_eruption"] / 10)
         
         boundary_tiles = boundary_info.get("boundary_tiles", [])
         tile_map = {t.id: t for t in tiles}
@@ -524,9 +567,9 @@ class PlateMotionEngine:
             )
             earthquake_prob = eq_base * eq_boundary_boost * earthquake_boost
             
-            if random.random() < earthquake_prob:
+            if self.rng.random() < 1 - (1 - min(1.0, earthquake_prob)) ** self.time_scale:
                 # 生成地震
-                magnitude = 4.0 + random.uniform(0, 4)  # 4-8级
+                magnitude = 4.0 + self.rng.uniform(0, 4)  # 4-8级
                 if boundary_type == BoundaryType.SUBDUCTION:
                     magnitude += 1.0  # 俯冲带地震更强
                 
@@ -552,8 +595,8 @@ class PlateMotionEngine:
                 # 考虑已有的火山潜力
                 volcano_prob *= (1 + tile.volcanic_potential)
                 
-                if random.random() < volcano_prob:
-                    intensity = random.uniform(0.5, 1.0)
+                if self.rng.random() < 1 - (1 - min(1.0, volcano_prob)) ** self.time_scale:
+                    intensity = self.rng.uniform(0.5, 1.0)
                     events.append(TectonicEvent(
                         event_type="volcanic_eruption",
                         x=tile.x,
@@ -701,4 +744,3 @@ class PlateMotionEngine:
                 neighbors.append((nx, ny))
         
         return neighbors
-

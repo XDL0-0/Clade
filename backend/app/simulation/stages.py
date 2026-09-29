@@ -421,6 +421,8 @@ class ParsePressuresStage(BaseStage):
         
         ctx.pressures = engine.environment.parse_pressures(ctx.command.pressures)
         ctx.modifiers = engine.environment.apply_pressures(ctx.pressures)
+        from .classic_pressures import prepare_pressure_scope
+        prepare_pressure_scope(ctx, engine)
         ctx.major_events = engine.escalation_service.register(
             ctx.command.pressures, ctx.turn_index
         )
@@ -701,7 +703,7 @@ class FetchSpeciesStage(BaseStage):
         
         # 气候调整【优化】提高阈值，减少触发频率
         # 原阈值：温度 0.1, 海平面 0.5 -> 新阈值：温度 0.5, 海平面 2.0
-        if ctx.species_batch and (abs(ctx.temp_delta) > 0.5 or abs(ctx.sea_delta) > 2.0):
+        if "classic_world" not in ctx.plugin_data and ctx.species_batch and (abs(ctx.temp_delta) > 0.5 or abs(ctx.sea_delta) > 2.0):
             t0 = time.perf_counter()
             habitat_manager.adjust_habitats_for_climate(
                 ctx.species_batch,
@@ -1146,6 +1148,12 @@ class PopulationUpdateStage(BaseStage):
         
         logger.info("计算种群变化（死亡+繁殖并行）...")
         ctx.emit_event("stage", "💀🐣 计算种群变化", "物种")
+
+        if ctx.plugin_data.get("tensor_ecology", {}).get("population_resolved"):
+            from .classic_population import commit_tensor_population
+            commit_tensor_population(ctx, engine)
+            self._update_resource_dynamics(ctx, engine)
+            return
         
         # 更新环境动态修正系数
         temp_change = ctx.modifiers.get("temperature", 0.0) if ctx.modifiers else 0.0
@@ -3231,4 +3239,3 @@ def get_default_stages(include_tensor: bool = True) -> list[BaseStage]:
         core_stages.extend(get_tensor_stages())
     
     return sorted(core_stages, key=lambda s: s.order)
-

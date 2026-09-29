@@ -36,6 +36,19 @@ balance:
   competition_decay_per_100_turns: 0.0      # 每100回合竞争强度衰减
   capacity_multiplier: 10000.0      # 承载力乘数，基于植被计算
   veg_capacity_sensitivity: 0.0     # 承载力对平均植被的敏感度 (avg_veg-0.5)
+  # 活跃统一生态路径：以下参数直接传入 GPU 死亡/出生计算。
+  base_mortality: 0.06
+  temp_mortality_weight: 0.25
+  competition_weight: 0.20
+  resource_weight: 0.25
+  trophic_weight: 0.25
+  suitability_weight: 0.35
+  min_mortality: 0.0
+  max_mortality: 0.95
+  max_net_growth_ratio: 0.60    # 物种总量增长上限，只限制出生，不裁迁入人口
+  max_net_decline_ratio: 0.60   # 单步死亡上限；需要更猛烈灾害时可提高至0.95
+  min_suitability_for_reproduction: 0.15
+  generation_scaling_enabled: true
   
   # === 分化检测 ===
   divergence_threshold: 0.5     # 环境分歧检测阈值（0-1）
@@ -170,4 +183,3 @@ pressure_bridge:
 # )
 # mortality_calc = MultiFactorMortality(config=bridge_config)
 # ```
-

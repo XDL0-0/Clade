@@ -215,6 +215,8 @@ class PressureToTensorBridge:
         map_shape: Tuple[int, int] = (64, 64),
         map_width: int = 8,
         map_height: int = 8,
+        global_thermal_handled: bool = False,
+        tile_coordinates: Optional[Dict[int, Tuple[int, int]]] = None,
     ) -> PressureTensorOverlay:
         """
         将压力修改器转换为空间张量
@@ -238,6 +240,8 @@ class PressureToTensorBridge:
         for mod_name, mod_value in modifiers.items():
             if mod_name in MODIFIER_CHANNEL_MAP:
                 channel, coeff = MODIFIER_CHANNEL_MAP[mod_name]
+                if global_thermal_handled and channel == PressureChannel.THERMAL:
+                    continue
                 # 全局压力均匀分布
                 overlay[channel] += mod_value * coeff
                 total_intensity += abs(mod_value)
@@ -259,13 +263,19 @@ class PressureToTensorBridge:
                         pressure.affected_tiles,
                         map_shape,
                         map_width,
+                        tile_coordinates,
                     )
                 else:
+                    # modifiers 已是全局压力解析结果，不再叠加同一压力的模板。
+                    if modifiers:
+                        continue
                     spatial_mask = np.ones((H, W), dtype=np.float32)
                 
                 # 叠加到对应通道
                 intensity = pressure.intensity / 10.0  # 归一化到 [0, 1]
                 for ch, coeff in channels:
+                    if global_thermal_handled and ch == PressureChannel.THERMAL and not getattr(pressure, 'affected_tiles', None):
+                        continue
                     overlay[ch] += spatial_mask * intensity * coeff
                 
                 total_intensity += pressure.intensity
@@ -290,6 +300,7 @@ class PressureToTensorBridge:
         affected_tiles: List[int],
         map_shape: Tuple[int, int],
         map_width: int,
+        tile_coordinates: Optional[Dict[int, Tuple[int, int]]] = None,
     ) -> np.ndarray:
         """创建带衰减的空间掩码
         
@@ -307,15 +318,18 @@ class PressureToTensorBridge:
         # 将地块索引转换为坐标
         centers = []
         for tile_idx in affected_tiles:
-            ty = tile_idx // map_width
-            tx = tile_idx % map_width
-            # 映射到张量坐标
-            tensor_y = int(ty * H / max(1, (max(affected_tiles) // map_width + 1)))
-            tensor_x = int(tx * W / map_width)
-            centers.append((tensor_y, tensor_x))
+            if tile_coordinates is not None:
+                coordinate = tile_coordinates.get(tile_idx)
+                if coordinate is None:
+                    continue
+                ty, tx = coordinate
+            else:
+                ty, tx = divmod(tile_idx, max(1, map_width))
+            if 0 <= ty < H and 0 <= tx < W:
+                centers.append((ty, tx))
         
         if not centers:
-            return np.ones((H, W), dtype=np.float32)
+            return mask
         
         # 计算到最近受影响点的距离，应用高斯衰减
         for y in range(H):
@@ -876,4 +890,3 @@ def reset_pressure_bridge() -> None:
     _global_bridge = None
     _global_extractor = None
     _global_mortality = None
-

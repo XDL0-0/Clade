@@ -54,7 +54,7 @@ class PressureTensorStage(BaseStage):
     
     def __init__(self):
         super().__init__(
-            StageOrder.PARSE_PRESSURES.value + 1,  # order=11
+            29,  # 地质/气候已更新地块与全局温度后，构建区域压力张量
             "压力张量化"
         )
     
@@ -71,19 +71,13 @@ class PressureTensorStage(BaseStage):
         bridge = get_pressure_bridge()
         
         # 获取地图尺寸
-        map_state = getattr(ctx, "current_map_state", None)
-        if map_state is not None:
-            H = getattr(map_state, "height", 64)
-            W = getattr(map_state, "width", 64)
-            map_width = getattr(map_state, "width", 8)
-            map_height = getattr(map_state, "height", 8)
-        else:
-            # 默认尺寸
-            H, W = 64, 64
-            map_width, map_height = 8, 8
+        tiles = getattr(ctx, "all_tiles", []) or []
+        H = max((tile.y for tile in tiles), default=39) + 1
+        W = max((tile.x for tile in tiles), default=127) + 1
+        map_width, map_height = W, H
         
         # 获取压力数据
-        modifiers = getattr(ctx, "modifiers", {}) or {}
+        modifiers = ctx.plugin_data.get("classic_global_modifiers", getattr(ctx, "modifiers", {}) or {})
         pressures = getattr(ctx, "pressures", []) or []
         
         # 转换为张量
@@ -93,6 +87,8 @@ class PressureTensorStage(BaseStage):
             map_shape=(H, W),
             map_width=map_width,
             map_height=map_height,
+            global_thermal_handled=ctx.plugin_data.get("classic_world", {}).get("climate") is not None,
+            tile_coordinates={tile.id: (tile.y, tile.x) for tile in tiles},
         )
         
         # 存入上下文
@@ -144,10 +140,7 @@ class TensorStateInitStage(BaseStage):
         all_tiles = getattr(ctx, "all_tiles", []) or []
         
         # 计算地图尺寸
-        if map_state:
-            H = getattr(map_state, "height", 64)
-            W = getattr(map_state, "width", 128)
-        elif all_tiles:
+        if all_tiles:
             # 从地块推断尺寸（MapTile 使用 x, y 坐标）
             max_y = max((t.y for t in all_tiles), default=40)
             max_x = max((t.x for t in all_tiles), default=128)
@@ -378,7 +371,9 @@ class TensorEcologyStage(BaseStage):
             return
         
         # 获取生态引擎
-        ecology_engine = get_ecology_engine()
+        from ..tensor.ecology import EcologyConfig
+        average_resource = float(np.mean(tensor_state.env[3])) if tensor_state.env.shape[0] > 3 else 0.5
+        ecology_engine = get_ecology_engine(EcologyConfig.from_balance(engine.tensor_config.balance, ctx.turn_index, average_resource))
         
         # 准备数据
         pop = tensor_state.pop.astype(np.float32)
@@ -466,6 +461,38 @@ class TensorEcologyStage(BaseStage):
         from ..core.config import get_settings
         settings = get_settings()
         turn_years = getattr(ctx, "turn_years", None) or settings.turn_years
+
+        eco_data = ctx.plugin_data.get("ecological_realism", {}) or {}
+        reproduction_modifiers = np.ones(S, dtype=np.float32)
+        resource_modifiers = np.ones(S, dtype=np.float32)
+        extra_mortality = np.zeros(S, dtype=np.float32)
+        mortality_adjustments = np.zeros(S, dtype=np.float32)
+        for lineage, idx in species_map.items():
+            allee = eco_data.get("allee_results", {}).get(lineage, {})
+            reproduction_modifiers[idx] *= max(0.0, float(allee.get("reproduction_modifier", 1.0)))
+            reproduction_modifiers[idx] *= max(0.0, float(eco_data.get("env_modifiers", {}).get(lineage, 1.0)))
+            if "mutualism_reproduction_modifiers" in eco_data:
+                reproduction_modifiers[idx] *= float(eco_data["mutualism_reproduction_modifiers"].get(lineage, 1.0))
+                resource_modifiers[idx] = float(eco_data.get("mutualism_resource_modifiers", {}).get(lineage, 1.0))
+                extra_mortality[idx] = float(eco_data.get("mutualism_mortality_modifiers", {}).get(lineage, 0.0))
+            else:
+                reproduction_modifiers[idx] *= 1.0 + max(0.0, float(eco_data.get("mutualism_benefits", {}).get(lineage, 0.0)))
+            disease = eco_data.get("disease_results", {}).get(lineage, {})
+            extra_mortality[idx] += max(0.0, float(disease.get("mortality_modifier", 0.0)))
+            extra_mortality[idx] += max(0.0, float(eco_data.get("adaptation_penalties", {}).get(lineage, 0.0)))
+
+        # 保留经典亲缘差异化竞争，但只并入本次 GPU 死亡结算一次。
+        from ..tensor.competition import calculate_competition_tensor
+        from ..core.container import get_container
+        ecology_balance = getattr(getattr(ctx, "ui_config", None), "ecology_balance", None)
+        if ecology_balance is None:
+            ecology_balance = get_container().config_service.get_ecology_balance()
+        if ecology_balance.enable_kin_competition and species_batch:
+            niche_overlaps = {code: metrics.overlap for code, metrics in ctx.niche_metrics.items()} if ctx.niche_metrics else None
+            kin_result = calculate_competition_tensor(species_batch, ecology_balance, niche_overlaps=niche_overlaps)
+            for position, lineage in enumerate(kin_result.species_codes):
+                if lineage in species_map:
+                    mortality_adjustments[species_map[lineage]] = kin_result.mortality_modifiers[position]
         
         # 【核心】直接执行 Taichi 计算（CUDA 上下文不能跨线程）
         # 注意：Taichi/CUDA 上下文是线程绑定的，不能用 asyncio.to_thread()
@@ -482,7 +509,18 @@ class TensorEcologyStage(BaseStage):
             external_bonus=external_bonus,
             decline_streaks=decline_streaks,
             turn_years=turn_years,  # 【v3.0】传递回合年数用于世代缩放
+            reproduction_modifiers=reproduction_modifiers,
+            resource_modifiers=resource_modifiers,
+            extra_mortality=extra_mortality,
+            mortality_adjustments=mortality_adjustments,
         )
+
+        from .classic_mutualism import apply_seed_dispersal
+        ordered_codes = [""] * S
+        for lineage, idx in species_map.items():
+            ordered_codes[idx] = lineage
+        result.pop, seed_events = apply_seed_dispersal(result.pop, ordered_codes, ctx.all_tiles, eco_data, sea_level=getattr(ctx.current_map_state, "sea_level", 0.0))
+        eco_data["mutualism_seed_dispersal_events"] = seed_events
         
         # 【新增诊断】比较计算前后的地块数
         tiles_before = int((pop > 0).any(axis=0).sum())
@@ -502,7 +540,8 @@ class TensorEcologyStage(BaseStage):
         ctx.tensor_state = tensor_state
         
         # 同步死亡率到 combined_results
-        self._sync_mortality_to_results(ctx, result, species_map)
+        self._sync_mortality_to_results(ctx, result, species_map, pop)
+        ctx.plugin_data["tensor_ecology"] = {"population_resolved": True}
         
         # 更新迁徙统计
         ctx.migration_count = len(result.migrated_species)
@@ -515,10 +554,8 @@ class TensorEcologyStage(BaseStage):
         for lineage, idx in species_map.items():
             if idx < result.metrics.species_count:
                 # 更严谨的衰退判定：高死亡率且净增长<1
-                mortality_slice = result.mortality_rates[idx]
-                mask = mortality_slice > 0
-                avg_death = float(mortality_slice[mask].mean()) if mask.any() else 0.0
                 initial_pop = float(pop_before[idx])
+                avg_death = float(result.death_counts[idx]) / max(initial_pop, 1e-6)
                 final_pop = float(pop_after[idx])
                 growth = final_pop / max(initial_pop, 1e-6)
                 is_declining = (avg_death >= 0.12) and (growth < 1.0)
@@ -563,6 +600,7 @@ class TensorEcologyStage(BaseStage):
         ctx,
         result,
         species_map: dict,
+        initial_pop: np.ndarray,
     ) -> None:
         """将张量死亡率同步到 combined_results
         
@@ -573,40 +611,64 @@ class TensorEcologyStage(BaseStage):
         combined_results = getattr(ctx, "combined_results", None) or []
         species_batch = getattr(ctx, "species_batch", []) or []
         
-        # 如果 combined_results 为空，从 species_batch 创建
-        if len(combined_results) == 0 and species_batch:
-            combined_results = []
-            for sp in species_batch:
-                pop = sp.morphology_stats.get("population", 0)
+        existing_codes = {item.species.lineage_code for item in combined_results}
+        for sp in species_batch:
+            if sp.lineage_code not in existing_codes:
+                initial = sp.morphology_stats.get("population", 0)
                 combined_results.append(AggregatedMortalityResult(
-                    species=sp,
-                    initial_population=pop,
-                    deaths=0,
-                    survivors=pop,
-                    death_rate=0.0,
+                    species=sp, initial_population=initial, deaths=0,
+                    survivors=initial, death_rate=0.0,
                 ))
-            ctx.combined_results = combined_results
-            logger.info(f"[张量生态] 创建 combined_results: {len(combined_results)} 个物种")
-        
+        ctx.combined_results = combined_results
+
         if not combined_results:
             logger.warning("[张量生态] combined_results 为空，跳过死亡率同步")
             return
         
+        from ..tensor.population import apportion_population
         sync_count = 0
+        # 精确整数人口不可写回 float32（大种群超过 2^24 后会丢个体）。
+        result.pop = result.pop.astype(np.float64)
+        ctx.tensor_state.pop = result.pop
+        valid_tiles = ctx.tensor_state.masks.get("tile_ids")
         for res in combined_results:
             lineage = res.species.lineage_code
             idx = species_map.get(lineage)
             if idx is not None and idx < result.mortality_rates.shape[0]:
-                # 取该物种的平均死亡率
                 species_mortality = result.mortality_rates[idx]
-                mask = species_mortality > 0
-                if mask.any():
-                    avg_mortality = float(species_mortality[mask].mean())
-                    res.death_rate = avg_mortality
-                    res.deaths = int(result.death_counts[idx])
-                    res.survivors = int(result.survivor_counts[idx])
-                    res.final_population = res.survivors
-                    sync_count += 1
+                initial = max(0, int(res.species.morphology_stats.get("population", 0)))
+                deaths = min(initial, max(0, int(round(float(result.death_counts[idx])))))
+                survivors = initial - deaths
+                births = max(0, int(round(float(result.birth_counts[idx]))))
+                final_population = survivors + births
+                weights = result.pop[idx]
+                if valid_tiles is not None and np.any(valid_tiles >= 0):
+                    weights = np.where(valid_tiles >= 0, weights, 0)
+                if final_population > 0 and not np.any(weights > 0):
+                    weights = initial_pop[idx]
+                result.pop[idx] = apportion_population(weights, final_population)
+                res.initial_population = initial
+                res.deaths = deaths
+                res.survivors = survivors
+                res.births = births
+                res.death_rate = deaths / initial if initial else 0.0
+                res.adjusted_death_rate = res.death_rate
+                res.final_population = final_population
+                res.adjusted_k = float(result.capacity_counts[idx])
+                ctx.new_populations[lineage] = final_population
+                # 兼容原 reproduction_results 的“期初 + 新生”语义。
+                ctx.reproduction_results[lineage] = initial + births
+                mask = initial_pop[idx] > 0
+                rates = species_mortality[mask]
+                res.total_tiles = int(mask.sum())
+                res.healthy_tiles = int((rates < 0.25).sum())
+                res.warning_tiles = int(((rates >= 0.25) & (rates <= 0.5)).sum())
+                res.critical_tiles = int((rates > 0.5).sum())
+                res.best_tile_rate = float(rates.min()) if rates.size else 0.0
+                res.worst_tile_rate = float(rates.max()) if rates.size else 0.0
+                res.has_refuge = bool((rates < 0.25).any())
+                res.resource_pressure = min(1.0, initial / max(1.0, res.adjusted_k))
+                sync_count += 1
         
         logger.info(f"[张量生态] 死亡率同步完成: {sync_count}/{len(combined_results)} 个物种")
 
@@ -733,63 +795,48 @@ class TensorStateSyncStage(BaseStage):
                 species_map = tensor_state.species_map
                 S, H, W = pop.shape
                 
-                # 计算每个物种的总种群
+                from ..tensor.population import apportion_population
                 totals = compute.sum_population(pop)
-                
-                # 【v2.0 新增】同步栖息地分布
                 new_habitats = []
                 turn_index = getattr(ctx, "turn_index", 0)
-                
+                resolved = ctx.plugin_data.get("tensor_ecology", {}).get("population_resolved", False)
+                valid_mask = np.zeros((H, W), dtype=bool)
+                for r, c in tile_coords:
+                    if 0 <= r < H and 0 <= c < W:
+                        valid_mask[r, c] = True
+
                 for lineage, idx in species_map.items():
-                    if idx >= len(totals):
+                    sp = species_by_lineage.get(lineage)
+                    if sp is None or idx >= len(totals):
                         continue
-                    
-                    new_population = max(0, int(totals[idx]))
-                    
-                    # 更新 new_populations
+                    # 种群阶段/分化已经提交的总数优先；旧 GPU 总量不能恢复被拆分的父种群。
+                    old_pop = sp.morphology_stats.get("population", 0)
+                    target = old_pop if resolved else ctx.new_populations.get(lineage, totals[idx])
+                    new_population = 0 if sp.status == "extinct" else max(0, int(target))
+                    weights = np.where(valid_mask, pop[idx], 0.0)
+                    if new_population > 0 and np.any(weights > 0):
+                        allocation = apportion_population(weights, new_population)
+                        pop[idx] = allocation
+                        for r, c in np.argwhere(allocation > 0):
+                            tile_pop = int(allocation[r, c])
+                            new_habitats.append(HabitatPopulation(
+                                tile_id=tile_coords[(int(r), int(c))], species_id=sp.id,
+                                population=tile_pop,
+                                suitability=min(1.0, tile_pop / (new_population / 10 + 1)),
+                                turn_index=turn_index,
+                            ))
+                            habitat_sync_count += 1
+                    elif new_population <= 0:
+                        pop[idx] = 0
+                    # 没有合法栖息地权重时保留上层物种状态，不均匀投放到全地图。
                     ctx.new_populations[lineage] = new_population
-                    
-                    # 更新 species_batch 中的物种对象
-                    if lineage in species_by_lineage:
-                        sp = species_by_lineage[lineage]
-                        old_pop = sp.morphology_stats.get("population", 0)
-                        sp.morphology_stats["population"] = new_population
-                        
-                        # 检查灭绝
-                        if new_population <= 0 and old_pop > 0:
-                            sp.status = "extinct"
-                            sp.morphology_stats["extinction_turn"] = turn_index
-                            extinct_count += 1
-                            logger.info(f"[张量同步] 物种 {lineage} 灭绝")
-                        
-                        # 【v2.0 新增】同步栖息地分布（按地块）
-                        if new_population > 0 and tile_coords:
-                            species_pop_2d = pop[idx]  # (H, W)
-                            total_pop_in_tensor = species_pop_2d.sum()
-                            
-                            if total_pop_in_tensor > 0:
-                                # 找到有种群的地块
-                                for r in range(H):
-                                    for c in range(W):
-                                        tile_pop = int(species_pop_2d[r, c])
-                                        if tile_pop > 0:
-                                            tile_id = tile_coords.get((r, c))
-                                            if tile_id is not None:
-                                                # 计算适宜度（基于种群比例）
-                                                suit = min(1.0, tile_pop / (total_pop_in_tensor / 10 + 1))
-                                                new_habitats.append(
-                                                    HabitatPopulation(
-                                                        tile_id=tile_id,
-                                                        species_id=sp.id,
-                                                        population=tile_pop,
-                                                        suitability=suit,
-                                                        turn_index=turn_index,
-                                                    )
-                                                )
-                                                habitat_sync_count += 1
-                    
+                    sp.morphology_stats["population"] = new_population
+                    if new_population <= 0 and old_pop > 0 and sp.status != "extinct":
+                        sp.status = "extinct"
+                        sp.morphology_stats["extinction_turn"] = turn_index
+                        extinct_count += 1
                     sync_count += 1
-                
+
                 # 批量写入栖息地数据
                 if new_habitats:
                     try:
@@ -807,6 +854,12 @@ class TensorStateSyncStage(BaseStage):
                 if lineage in species_by_lineage:
                     sp = species_by_lineage[lineage]
                     old_pop = sp.morphology_stats.get("population", 0)
+                    if sp.status == "extinct":
+                        new_pop = 0
+                        ctx.new_populations[lineage] = 0
+                    elif ctx.plugin_data.get("tensor_ecology", {}).get("population_resolved", False):
+                        new_pop = max(0, int(old_pop))
+                        ctx.new_populations[lineage] = new_pop
                     sp.morphology_stats["population"] = new_pop
                     
                     # 检查灭绝

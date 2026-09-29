@@ -268,6 +268,8 @@ class TectonicStepResult:
     plates_moved: int = 0
     volcanoes_erupted: int = 0
     earthquakes_occurred: int = 0
+    # Source raster cell -> final raster cell across every geological substep.
+    crust_destinations: dict[int, int] = field(default_factory=dict)
     
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -289,6 +291,7 @@ class TectonicStepResult:
             "plates_moved": self.plates_moved,
             "volcanoes_erupted": self.volcanoes_erupted,
             "earthquakes_occurred": self.earthquakes_occurred,
+            "crust_destinations": self.crust_destinations,
         }
 
 
@@ -327,4 +330,3 @@ class SimpleTile:
             "boundary_type": self.boundary_type.value,
             "distance_to_boundary": self.distance_to_boundary,
         }
-

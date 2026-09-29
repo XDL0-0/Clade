@@ -6,6 +6,9 @@
 from __future__ import annotations
 
 import json
+import math
+import random
+from dataclasses import fields
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -23,7 +26,7 @@ from .motion_engine import PlateMotionEngine
 from .geological_features import GeologicalFeatureDistributor
 from .matrix_engine import TectonicMatrixEngine
 from .species_tracker import PlateSpeciesTracker, SimpleSpecies, SimpleHabitat
-from .mantle_dynamics import MantleDynamicsEngine, WilsonPhase
+from .mantle_dynamics import MantleDynamicsEngine, WilsonPhase, MantleDynamicsState, ConvectionCell
 
 
 class TectonicSystem:
@@ -51,10 +54,11 @@ class TectonicSystem:
         width: int = 128,
         height: int = 40,
         seed: int | None = None,
+        _restore: bool = False,
     ):
         self.width = width
         self.height = height
-        self.seed = seed or 12345
+        self.seed = seed if seed is not None else 12345
         
         # 子系统
         self.generator = PlateGenerator(width, height)
@@ -71,7 +75,17 @@ class TectonicSystem:
         self.turn_index: int = 0
         
         # 初始化
-        self._initialize()
+        # Legacy generators seed module RNGs; preserve the caller's simulation
+        # stream while keeping all subsequent geological randomness saveable.
+        py_state, np_state = random.getstate(), np.random.get_state()
+        try:
+            if not _restore:
+                self._initialize()
+        finally:
+            random.setstate(py_state)
+            np.random.set_state(np_state)
+        self.motion_engine.rng.seed(self.seed + 17)
+        self.mantle_engine.rng.seed(self.seed + 31)
     
     def _initialize(self) -> None:
         """初始化系统"""
@@ -97,6 +111,72 @@ class TectonicSystem:
         pressure_modifiers: dict[str, float] | None = None,
         species_list: Sequence[SimpleSpecies] | None = None,
         habitats: Sequence[SimpleHabitat] | None = None,
+        turn_years: float = 500_000,
+    ) -> TectonicStepResult:
+        """Integrate long classic eras without transporting many cells at once."""
+        if not math.isfinite(turn_years) or turn_years <= 0:
+            raise ValueError("turn_years must be a positive finite number")
+        count = max(1, math.ceil(turn_years / 500_000.0))
+        logical_turn = self.turn_index
+        before = {t.id: (t.elevation, t.temperature) for t in self.tiles}
+        old_coords = np.array([(t.x, t.y) for t in self.tiles], dtype=np.float32)
+        crust_destinations = {tile.id: tile.id for tile in self.tiles}
+        events, causes, feedback = [], {}, {}
+        for index in range(count):
+            self.turn_index = logical_turn
+            result = self._step_once(
+                pressure_modifiers, None, None, turn_years / count,
+            )
+            destinations = self.motion_engine.transport.destinations
+            crust_destinations = {
+                source: destinations.get(current, current)
+                for source, current in crust_destinations.items()
+            }
+            events.extend(result.events)
+            for change in result.terrain_changes:
+                if change.cause in {"plate_drift", "volcanic"} or causes.get(change.tile_id) not in {"plate_drift", "volcanic"}:
+                    causes[change.tile_id] = change.cause
+            for key, value in result.pressure_feedback.items():
+                feedback[key] = max(feedback.get(key, 0.0), value)
+        changes = [TerrainChange(
+            t.id, t.x, t.y, before[t.id][0], t.elevation,
+            causes.get(t.id, "plate_drift"), before[t.id][1], t.temperature,
+        ) for t in self.tiles if abs(t.elevation - before[t.id][0]) > 1e-8
+            or abs(t.temperature - before[t.id][1]) > 1e-8]
+        result.terrain_changes, result.events, result.pressure_feedback = changes, events, feedback
+        result.tiles_affected = len(changes)
+        result.volcanoes_erupted = sum("volcanic" in e.event_type for e in events)
+        result.earthquakes_occurred = sum(e.event_type == "earthquake" for e in events)
+        result.crust_destinations = crust_destinations
+        if species_list and habitats:
+            # Continental habitats follow crust over the whole logical turn;
+            # marine populations stay in the water and use ecological dispersal.
+            crust_species = {
+                species.id for species in species_list
+                if species.habitat_type in {"terrestrial", "aquatic", "freshwater", "amphibious", "coastal"}
+            }
+            moved_habitats = [SimpleHabitat(
+                tile_id=crust_destinations.get(h.tile_id, h.tile_id) if h.species_id in crust_species else h.tile_id,
+                species_id=h.species_id, population=h.population,
+            ) for h in habitats]
+            by_id = {tile.id: tile for tile in self.tiles}
+            new_coords = np.array([
+                (by_id[crust_destinations[t.id]].x, by_id[crust_destinations[t.id]].y)
+                for t in self.tiles
+            ], dtype=np.float32)
+            movement = self.species_tracker.apply_plate_movement(
+                old_coords, new_coords, self.tiles, species_list, moved_habitats, self.plates,
+            )
+            result.isolation_events = movement.isolation_events
+            result.contact_events = movement.contact_events
+        return result
+
+    def _step_once(
+        self,
+        pressure_modifiers: dict[str, float] | None = None,
+        species_list: Sequence[SimpleSpecies] | None = None,
+        habitats: Sequence[SimpleHabitat] | None = None,
+        turn_years: float = 500_000,
     ) -> TectonicStepResult:
         """
         执行一个回合的板块运动
@@ -110,6 +190,10 @@ class TectonicSystem:
             TectonicStepResult
         """
         pressure_modifiers = pressure_modifiers or {}
+        if not np.isfinite(turn_years) or turn_years <= 0:
+            raise ValueError("turn_years must be a positive finite number")
+        self.motion_engine.time_scale = turn_years / 500_000.0
+        self.mantle_engine.time_scale = turn_years / 500_000.0
         
         # 保存旧坐标
         old_coords = np.array([(t.x, t.y) for t in self.tiles], dtype=np.float32)
@@ -147,7 +231,28 @@ class TectonicSystem:
             ))
         
         # 新坐标（实际上地块坐标不变，是属性变化）
-        new_coords = np.array([(t.x, t.y) for t in self.tiles], dtype=np.float32)
+        by_id = {t.id: t for t in self.tiles}
+        destinations = self.motion_engine.transport.destinations
+        new_coords = np.array([
+            (by_id[destinations.get(t.id, t.id)].x, by_id[destinations.get(t.id, t.id)].y)
+            for t in self.tiles
+        ], dtype=np.float32)
+        # Crust-bound features follow the moving crust. Mantle hotspots stay fixed.
+        for collection in (self.feature_distributor.volcanoes,
+                           self.feature_distributor.trenches,
+                           self.feature_distributor.ridges,
+                           self.feature_distributor.rift_lakes):
+            for feature in collection:
+                tile = by_id.get(destinations.get(feature.tile_id, feature.tile_id))
+                if tile is not None:
+                    feature.x, feature.y, feature.tile_id = tile.x, tile.y, tile.id
+                    feature.plate_id = tile.plate_id
+                    feature.boundary_type = tile.boundary_type
+        erupted = {e.tile_id for e in events if e.event_type == "volcanic_eruption"}
+        for volcano in self.feature_distributor.volcanoes:
+            if volcano.tile_id in erupted:
+                volcano.last_eruption_turn = self.turn_index
+                volcano.dormant = False
         
         # 物种追踪
         isolation_events: list[IsolationEvent] = []
@@ -415,7 +520,78 @@ class TectonicSystem:
             "tiles": [t.to_dict() for t in self.tiles],
             "volcanoes": [v.to_dict() for v in self.feature_distributor.volcanoes],
             "hotspots": self.feature_distributor.hotspots,
+            "trenches": [v.to_dict() for v in self.feature_distributor.trenches],
+            "ridges": [v.to_dict() for v in self.feature_distributor.ridges],
+            "rift_lakes": [v.to_dict() for v in self.feature_distributor.rift_lakes],
+            "mantle": self.mantle_engine.state.to_dict(),
+            "transport": self.motion_engine.transport.to_dict(),
+            "motion_rng": self.motion_engine.rng.getstate(),
+            "mantle_rng": self.mantle_engine.rng.getstate(),
+            "species_tracking": {
+                "connectivity": [[a, b, value] for (a, b), value in self.species_tracker._plate_connectivity.items()],
+                "distances": [[a, b, value] for (a, b), value in self.species_tracker._last_plate_distances.items()],
+                "isolation": self.species_tracker._isolation_history,
+            },
+            "version": 2,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "TectonicSystem":
+        """Restore all evolving state; absent fields retain old-save defaults."""
+        complete = all(data.get(name) for name in ("plates", "tiles", "plate_map", "mantle"))
+        system = cls(width=data["width"], height=data["height"], seed=data.get("seed", 12345), _restore=complete)
+        system.turn_index = int(data.get("turn_index", 0))
+        if data.get("plates"):
+            system.plates = [Plate.from_dict(p) for p in data["plates"]]
+        if data.get("tiles"):
+            allowed = {f.name for f in fields(SimpleTile)}
+            system.tiles = []
+            for row in data["tiles"]:
+                values = {k: v for k, v in row.items() if k in allowed}
+                values["boundary_type"] = BoundaryType(values.get("boundary_type", 0))
+                system.tiles.append(SimpleTile(**values))
+        if data.get("plate_map"):
+            system.plate_map = np.asarray(data["plate_map"], dtype=np.int32)
+        for name in ("volcanoes", "trenches", "ridges", "rift_lakes"):
+            if name not in data:
+                continue
+            features = []
+            for row in data[name]:
+                values = dict(row)
+                values["feature_type"] = FeatureType(values["feature_type"])
+                boundary = values.get("boundary_type")
+                values["boundary_type"] = BoundaryType(boundary) if boundary is not None else None
+                features.append(GeologicalFeature(**values))
+            setattr(system.feature_distributor, name, features)
+        if "hotspots" in data:
+            system.feature_distributor.hotspots = [tuple(point) for point in data["hotspots"]]
+        system.feature_distributor._used_names = {
+            feature.name for feature in system.feature_distributor.volcanoes if feature.name
+        }
+        if data.get("mantle"):
+            values = dict(data["mantle"])
+            values["wilson_phase"] = WilsonPhase(values.get("wilson_phase", "drifting"))
+            values["convection_cells"] = [ConvectionCell(**cell) for cell in values.get("convection_cells", [])]
+            system.mantle_engine.state = MantleDynamicsState(**values)
+        system.motion_engine.transport.restore(data.get("transport", {}))
+        tracking = data.get("species_tracking", {})
+        system.species_tracker._plate_connectivity = {
+            (a, b): value for a, b, value in tracking.get("connectivity", [])
+        }
+        system.species_tracker._last_plate_distances = {
+            (a, b): value for a, b, value in tracking.get("distances", [])
+        }
+        system.species_tracker._isolation_history = {
+            int(key): value for key, value in tracking.get("isolation", {}).items()
+        }
+        def tuples(value):
+            return tuple(tuples(item) for item in value) if isinstance(value, (list, tuple)) else value
+        for key, engine in (("motion_rng", system.motion_engine), ("mantle_rng", system.mantle_engine)):
+            if key in data:
+                engine.rng.setstate(tuples(data[key]))
+        system.motion_engine._detect_boundaries(system.plates, system.plate_map, system.tiles)
+        system.matrix_engine.build(system.tiles, system.plates, system.plate_map)
+        return system
     
     def save(self, path: str | Path) -> None:
         """保存到文件"""
@@ -433,26 +609,4 @@ class TectonicSystem:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         
-        system = cls(
-            width=data["width"],
-            height=data["height"],
-            seed=data["seed"],
-        )
-        
-        # 恢复状态
-        system.turn_index = data.get("turn_index", 0)
-        
-        # 恢复板块
-        system.plates = [Plate.from_dict(p) for p in data.get("plates", [])]
-        
-        # 恢复板块地图
-        plate_map_data = data.get("plate_map", [])
-        if plate_map_data:
-            system.plate_map = np.array(plate_map_data, dtype=np.int32)
-        
-        # 重新构建矩阵
-        if system.tiles and system.plates:
-            system.matrix_engine.build(system.tiles, system.plates, system.plate_map)
-        
-        return system
-
+        return cls.from_dict(data)

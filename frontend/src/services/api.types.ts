@@ -289,6 +289,7 @@ export interface MapOverview {
 }
 
 export interface TurnReport {
+  world_dynamics?: import("./worldDynamics.types").WorldDynamics | null;
   turn_index: number;
   pressures_summary: string;
   narrative: string;

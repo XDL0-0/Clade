@@ -25,7 +25,7 @@ class WilsonPhase(Enum):
     """威尔逊周期阶段
     
     真实地球上一个完整周期约3-5亿年。
-    游戏中可以压缩到30-50回合。
+    按50万年参考子步标定；经典模式不同年代的回合由系统内部积分。
     """
     SUPERCONTINENT = "supercontinent"   # 超大陆稳定期
     RIFTING = "rifting"                  # 裂谷期（开始分裂）
@@ -130,14 +130,14 @@ class MantleDynamicsEngine:
     3. 计算板块驱动力
     """
     
-    # 威尔逊周期各阶段的默认持续时间（回合）
+    # 威尔逊周期各阶段持续时间（50万年参考子步），全周期约2.65–5.25亿年。
     PHASE_DURATIONS = {
-        WilsonPhase.SUPERCONTINENT: (10, 20),
-        WilsonPhase.RIFTING: (5, 10),
-        WilsonPhase.DRIFTING: (15, 30),
-        WilsonPhase.SUBDUCTION: (10, 20),
-        WilsonPhase.COLLISION: (8, 15),
-        WilsonPhase.OROGENY: (5, 10),
+        WilsonPhase.SUPERCONTINENT: (100, 200),
+        WilsonPhase.RIFTING: (50, 100),
+        WilsonPhase.DRIFTING: (150, 300),
+        WilsonPhase.SUBDUCTION: (100, 200),
+        WilsonPhase.COLLISION: (80, 150),
+        WilsonPhase.OROGENY: (50, 100),
     }
     
     # 阶段转换顺序
@@ -155,6 +155,8 @@ class MantleDynamicsEngine:
         self.width = width
         self.height = height
         self.state = MantleDynamicsState()
+        self.rng = random.Random()
+        self.time_scale = 1.0
         
         # 配置
         self.config = {
@@ -297,7 +299,7 @@ class MantleDynamicsEngine:
     def _advance_wilson_cycle(self) -> tuple[bool, WilsonPhase | None]:
         """推进威尔逊周期"""
         # 增加进度
-        progress_step = 1.0 / self.state.phase_duration
+        progress_step = self.time_scale / self.state.phase_duration
         self.state.phase_progress += progress_step
         
         if self.state.phase_progress >= 1.0:
@@ -315,7 +317,7 @@ class MantleDynamicsEngine:
             
             # 设置新阶段持续时间
             duration_range = self.PHASE_DURATIONS[new_phase]
-            self.state.phase_duration = random.randint(*duration_range)
+            self.state.phase_duration = self.rng.randint(*duration_range)
             
             # 更新聚合度
             self._update_aggregation_from_phase()
@@ -412,15 +414,15 @@ class MantleDynamicsEngine:
         """对流单元缓慢演化"""
         for cell in self.state.convection_cells:
             # 缓慢漂移
-            cell.center_x = (cell.center_x + random.uniform(-0.1, 0.1)) % self.width
+            cell.center_x = (cell.center_x + self.rng.uniform(-0.1, 0.1) * self.time_scale) % self.width
             cell.center_y = max(
                 self.height * 0.15,
                 min(self.height * 0.85, 
-                    cell.center_y + random.uniform(-0.05, 0.05))
+                    cell.center_y + self.rng.uniform(-0.05, 0.05) * self.time_scale)
             )
             
             # 强度微变
-            cell.strength += random.uniform(-0.01, 0.01)
+            cell.strength += self.rng.uniform(-0.01, 0.01) * self.time_scale
             cell.strength = max(0.05, min(0.2, cell.strength))
     
     def get_wilson_phase_info(self) -> dict:
@@ -468,10 +470,6 @@ class MantleDynamicsEngine:
                 plate = plate_map[plate_id]
                 plate.velocity_x = vx
                 plate.velocity_y = vy
-
-
-
-
 
 
 

@@ -21,6 +21,7 @@ from ...schemas.responses import (
     VegetationInfo,
 )
 from .hydrology import HydrologyService
+from .water_bodies import classify_water_bodies
 from .map_coloring import ViewMode, map_coloring_service
 from .suitability import (
     compute_consumer_aware_suitability,
@@ -152,9 +153,19 @@ class MapStateManager:
                     new_biome, pseudo_rand,
                     temperature=tile.temperature,
                     humidity=tile.humidity,
-                    elevation=tile.elevation
+                    elevation=relative_elevation
                 )
                 updated_tiles.append(tile)
+            else:
+                # Ice cover can change without changing the underlying biome.
+                coord_hash = (tile.x * 73856093) ^ (tile.y * 19349663)
+                tile.cover = self._infer_cover(
+                    new_biome, (coord_hash % 1000) / 1000.0,
+                    temperature=tile.temperature, humidity=tile.humidity,
+                    elevation=relative_elevation,
+                )
+                updated_tiles.append(tile)
+            tile.relative_elevation = relative_elevation
         
         if updated_tiles:
             logger.debug(f"[地图管理器] 更新了 {len(updated_tiles)} 个地块: "
@@ -166,7 +177,7 @@ class MapStateManager:
         # 重新分类水体（海岸判定、湖泊识别、盐度更新）
         logger.debug(f"[地图管理器] 重新分类水体...")
         all_tiles = self.repo.list_tiles()
-        self._classify_water_bodies(all_tiles)
+        self._classify_water_bodies(all_tiles, sea_level)
         self.repo.upsert_tiles(all_tiles)
         logger.debug(f"[地图管理器] 水体分类完成")
     
@@ -2395,60 +2406,14 @@ class MapStateManager:
                         # 4格内：-300m到-600m
                         tile.elevation = max(-600, min(-300, tile.elevation * 0.5))
     
-    def _classify_water_bodies(self, tiles: list[MapTile]) -> None:
+    def _classify_water_bodies(self, tiles: list[MapTile], sea_level: float = 0.0) -> None:
         """
         分类水体：识别海岸、湖泊，并设置盐度
         - 海岸：任何海域（elevation<0）如果邻近陆地（一格之内）
         - 湖泊：被陆地完全包围的水域（相对海拔<0）
         - 盐度：海水35‰，淡水湖0-0.5‰，咸水湖5-35‰
         """
-        # 构建坐标到地块的映射
-        tile_map = {(tile.x, tile.y): tile for tile in tiles}
-        
-        # 第一遍：识别海岸
-        for tile in tiles:
-            # 只处理水域（初始化时相对海拔 = 固定海拔）
-            if tile.elevation < 0:
-                # 检查是否邻近陆地（一格之内）
-                has_land_neighbor = False
-                for dx, dy in self._get_neighbor_offsets(tile.x, tile.y):
-                    neighbor = tile_map.get((dx, dy))
-                    if neighbor and neighbor.elevation >= 0:
-                        has_land_neighbor = True
-                        break
-                
-                # 海岸判定：邻近陆地的海域
-                if has_land_neighbor:
-                    if tile.elevation >= -200:
-                        tile.biome = "海岸"
-                    else:
-                        tile.biome = "浅海"  # 深度超过200m但邻近陆地
-                else:
-                    # 远离陆地，按深度分类
-                    if tile.elevation < -500:
-                        tile.biome = "深海"
-                    else:
-                        tile.biome = "浅海"
-                
-                # 初始盐度：海水默认35‰
-                tile.salinity = 35.0
-                tile.cover = "水域"
-        
-        # 第二遍：识别湖泊（被陆地完全包围的水域）
-        for tile in tiles:
-            if tile.elevation < 0:
-                # 使用广度优先搜索检查是否能到达地图边界
-                if self._is_landlocked(tile, tile_map):
-                    tile.is_lake = True
-                    tile.biome = "湖泊"
-                    # 湖泊盐度根据位置和气候推断
-                    # 干旱区域湖泊盐度高（咸水湖），湿润区域盐度低（淡水湖）
-                    if tile.humidity < 0.3:
-                        tile.salinity = 15.0 + (0.3 - tile.humidity) * 50  # 5-35‰咸水湖
-                    else:
-                        tile.salinity = 0.5  # 淡水湖
-                else:
-                    tile.is_lake = False
+        classify_water_bodies(tiles, sea_level, self.height, self._get_neighbor_offsets)
     
     def _is_landlocked(self, start_tile: MapTile, tile_map: dict[tuple[int, int], MapTile]) -> bool:
         """

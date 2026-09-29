@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Any
 import yaml
@@ -69,6 +69,18 @@ class TensorBalanceConfig:
     competition_decay_per_100_turns: float = 0.0
     capacity_multiplier: float = 10000.0
     veg_capacity_sensitivity: float = 0.0
+    base_mortality: float = 0.06
+    temp_mortality_weight: float = 0.25
+    competition_weight: float = 0.20
+    resource_weight: float = 0.25
+    trophic_weight: float = 0.25
+    suitability_weight: float = 0.35
+    min_mortality: float = 0.0
+    max_mortality: float = 0.95
+    max_net_growth_ratio: float = 0.60
+    max_net_decline_ratio: float = 0.60
+    min_suitability_for_reproduction: float = 0.15
+    generation_scaling_enabled: bool = True
     
     # 分化检测
     divergence_threshold: float = 0.5
@@ -79,25 +91,7 @@ class TensorBalanceConfig:
     
     def to_dict(self) -> dict:
         """转换为字典"""
-        return {
-            "temp_optimal": self.temp_optimal,
-            "temp_tolerance": self.temp_tolerance,
-            "temp_channel_idx": self.temp_channel_idx,
-            "mortality_blend_ratio": self.mortality_blend_ratio,
-            "temp_optimal_shift_per_100_turns": self.temp_optimal_shift_per_100_turns,
-            "temp_tolerance_shift_per_100_turns": self.temp_tolerance_shift_per_100_turns,
-            "diffusion_rate": self.diffusion_rate,
-            "diffusion_rate_growth_per_100_turns": self.diffusion_rate_growth_per_100_turns,
-            "birth_rate": self.birth_rate,
-            "birth_rate_growth_per_100_turns": self.birth_rate_growth_per_100_turns,
-            "competition_strength": self.competition_strength,
-            "competition_decay_per_100_turns": self.competition_decay_per_100_turns,
-            "capacity_multiplier": self.capacity_multiplier,
-            "veg_capacity_sensitivity": self.veg_capacity_sensitivity,
-            "divergence_threshold": self.divergence_threshold,
-            "divergence_normalizer": self.divergence_normalizer,
-            "fitness_min": self.fitness_min,
-        }
+        return asdict(self)
 
 
 @dataclass
@@ -290,19 +284,11 @@ class TensorConfig:
         balance_data = data.get("balance", {})
         tradeoff_data = data.get("tradeoff", {})
         
-        balance = TensorBalanceConfig(
-            temp_optimal=balance_data.get("temp_optimal", 20.0),
-            temp_tolerance=balance_data.get("temp_tolerance", 15.0),
-            temp_channel_idx=balance_data.get("temp_channel_idx", 1),
-            mortality_blend_ratio=balance_data.get("mortality_blend_ratio", 0.7),
-            diffusion_rate=balance_data.get("diffusion_rate", 0.1),
-            birth_rate=balance_data.get("birth_rate", 0.1),
-            competition_strength=balance_data.get("competition_strength", 0.01),
-            capacity_multiplier=balance_data.get("capacity_multiplier", 10000.0),
-            divergence_threshold=balance_data.get("divergence_threshold", 0.5),
-            divergence_normalizer=balance_data.get("divergence_normalizer", 10.0),
-            fitness_min=balance_data.get("fitness_min", 0.1),
-        )
+        # 按字段加载，避免 YAML 已提供的增长/衰减参数被手写白名单遗漏。
+        balance = TensorBalanceConfig(**{
+            item.name: balance_data[item.name]
+            for item in fields(TensorBalanceConfig) if item.name in balance_data
+        })
         
         tradeoff = TradeoffConfig(
             tradeoff_ratio=tradeoff_data.get("tradeoff_ratio", 0.7),
@@ -343,4 +329,3 @@ class TensorConfig:
             if hasattr(speciation_config, "use_tensor_ecology"):
                 cfg.use_tensor_ecology = getattr(speciation_config, "use_tensor_ecology")
         return cfg
-

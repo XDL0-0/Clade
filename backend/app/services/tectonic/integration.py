@@ -58,6 +58,7 @@ class TectonicIntegration:
         habitat_data: list[dict],  # 栖息地数据
         map_tiles: Sequence[Any],  # MapTile from main system
         pressure_modifiers: dict[str, float] | None = None,
+        turn_years: float = 500_000,
     ) -> TectonicIntegrationResult:
         """
         执行一步板块运动并返回集成结果
@@ -72,22 +73,38 @@ class TectonicIntegration:
             TectonicIntegrationResult
         """
         pressure_modifiers = pressure_modifiers or {}
+        geological_modifiers = dict(pressure_modifiers)
+        # Classic pressure parsing expands named disasters to physical channels.
+        # Translate those channels back into this subsystem's existing controls.
+        for control, channel in (("orogeny", "altitude_change"),
+                                 ("earthquake_period", "tectonic"),
+                                 ("volcanic_eruption", "volcanic")):
+            if control not in geological_modifiers and channel in pressure_modifiers:
+                geological_modifiers[control] = max(0.0, pressure_modifiers[channel])
         
         # 1. 【关键】同步主系统海拔到板块系统
         # 板块系统有自己的SimpleTile，需要与主系统MapTile的海拔保持同步
         self._sync_elevations_from_main(map_tiles)
+        if self.tectonic.turn_index == 0:
+            self._adopt_existing_plates(map_tiles)
         
         # 2. 转换物种数据
         simple_species = self._convert_species(species_list)
         
         # 3. 转换栖息地数据
-        simple_habitats = self._convert_habitats(habitat_data)
+        # Database tile IDs are not the tectonic raster's zero-based cell IDs.
+        cell_ids = {t.id: t.y * self.width + t.x for t in map_tiles}
+        simple_habitats = self._convert_habitats([
+            {**h, "tile_id": cell_ids[h["tile_id"]]}
+            for h in habitat_data if h.get("tile_id") in cell_ids
+        ])
         
         # 4. 执行板块运动
         result = self.tectonic.step(
-            pressure_modifiers=pressure_modifiers,
+            pressure_modifiers=geological_modifiers,
             species_list=simple_species,
             habitats=simple_habitats,
+            turn_years=turn_years,
         )
         
         # 4. 生成集成结果
@@ -102,9 +119,16 @@ class TectonicIntegration:
         )
         
         # 5. 转换地形变化为主系统格式
+        main_ids = {(tile.x, tile.y): tile.id for tile in map_tiles}
+        raster_to_main = {tile.y * self.width + tile.x: tile.id for tile in map_tiles}
+        integration_result.crust_destinations = {
+            raster_to_main[source]: raster_to_main[destination]
+            for source, destination in result.crust_destinations.items()
+            if source in raster_to_main and destination in raster_to_main
+        }
         for tc in result.terrain_changes:
             integration_result.terrain_changes.append({
-                "tile_id": tc.tile_id,
+                "tile_id": main_ids.get((tc.x, tc.y), tc.tile_id),
                 "x": tc.x,
                 "y": tc.y,
                 "old_elevation": tc.old_elevation,
@@ -122,11 +146,24 @@ class TectonicIntegration:
                 "type": event.event_type,
                 "x": event.x,
                 "y": event.y,
-                "tile_id": event.tile_id,
+                "tile_id": main_ids.get((event.x, event.y), event.tile_id),
                 "magnitude": event.magnitude,
                 "radius": event.affected_radius,
                 "description": event.description,
             })
+
+        # Publish material ownership and boundary metadata even where vertical
+        # changes are zero. The caller persists the same map_tiles sequence.
+        main_by_coord = {(t.x, t.y): t for t in map_tiles}
+        for internal in self.tectonic.tiles:
+            main = main_by_coord.get((internal.x, internal.y))
+            if main is None:
+                continue
+            main.plate_id = internal.plate_id
+            main.boundary_type = internal.boundary_type.name.lower()
+            main.distance_to_boundary = internal.distance_to_boundary
+            main.volcanic_potential = internal.volcanic_potential
+            main.earthquake_risk = internal.earthquake_risk
         
         logger.info(
             f"[板块集成] 回合 {result.turn_index}: "
@@ -136,6 +173,28 @@ class TectonicIntegration:
         )
         
         return integration_result
+
+    def _adopt_existing_plates(self, map_tiles: Sequence[Any]) -> None:
+        """Retain a legacy map's valid plate ownership when no snapshot exists."""
+        from .models import PlateType
+        plate_ids = {plate.id for plate in self.tectonic.plates}
+        existing_ids = {getattr(tile, "plate_id", 0) for tile in map_tiles}
+        if len(existing_ids) > 1 and existing_ids <= plate_ids:
+            by_coord = {(tile.x, tile.y): tile for tile in map_tiles}
+            for tile in self.tectonic.tiles:
+                main = by_coord.get((tile.x, tile.y))
+                if main is not None:
+                    tile.plate_id = main.plate_id
+                    self.tectonic.plate_map[tile.y, tile.x] = tile.plate_id
+        # Plate type must describe the existing map, not the independent demo
+        # terrain generated by TectonicSystem's initializer.
+        for plate in self.tectonic.plates:
+            cells = [tile for tile in self.tectonic.tiles if tile.plate_id == plate.id]
+            land_ratio = sum(tile.elevation >= 0 for tile in cells) / max(1, len(cells))
+            plate.tile_count = len(cells)
+            plate.plate_type = PlateType.CONTINENTAL if land_ratio >= 0.6 else (
+                PlateType.OCEANIC if land_ratio < 0.25 else PlateType.MIXED)
+            plate.density = {PlateType.CONTINENTAL: 2.7, PlateType.OCEANIC: 3.0, PlateType.MIXED: 2.85}[plate.plate_type]
     
     def _convert_species(self, species_list: Sequence[Any]) -> list[SimpleSpecies]:
         """将主系统物种转换为板块系统格式"""
@@ -233,16 +292,18 @@ class TectonicIntegration:
         Returns:
             应用的变化数量
         """
-        tile_map = {getattr(t, "id", i): t for i, t in enumerate(map_tiles)}
+        tile_map = {(t.x, t.y): t for t in map_tiles}
         applied = 0
         
         for change in changes:
             tile_id = change["tile_id"]
             new_elevation = change["new_elevation"]
             
-            tile = tile_map.get(tile_id)
+            tile = tile_map.get((change["x"], change["y"]))
             if tile and hasattr(tile, "elevation"):
                 tile.elevation = new_elevation
+                if "new_temperature" in change:
+                    tile.temperature = change["new_temperature"]
                 applied += 1
         
         return applied
@@ -315,6 +376,16 @@ class TectonicIntegration:
     def save_state(self, path: str) -> None:
         """保存板块系统状态"""
         self.tectonic.save(path)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "TectonicIntegration":
+        tectonic = TectonicSystem.from_dict(data)
+        integration = cls.__new__(cls)
+        integration.width, integration.height, integration.seed = tectonic.width, tectonic.height, tectonic.seed
+        integration.tectonic = tectonic
+        integration._species_cache = {}
+        integration._habitat_cache = []
+        return integration
     
     @classmethod
     def load_state(cls, path: str) -> "TectonicIntegration":
@@ -341,6 +412,7 @@ class TectonicIntegrationResult:
         contact_events: list[ContactEvent],
         wilson_phase: dict,
         pressure_feedback: dict[str, float],
+        crust_destinations: dict[int, int] | None = None,
     ):
         self.turn_index = turn_index
         self.terrain_changes = terrain_changes
@@ -349,6 +421,7 @@ class TectonicIntegrationResult:
         self.contact_events = contact_events
         self.wilson_phase = wilson_phase
         self.pressure_feedback = pressure_feedback
+        self.crust_destinations = dict(crust_destinations or {})
     
     @property
     def has_phase_change(self) -> bool:
@@ -396,6 +469,7 @@ class TectonicIntegrationResult:
             "contact_events": [e.to_dict() for e in self.contact_events],
             "wilson_phase": self.wilson_phase,
             "pressure_feedback": self.pressure_feedback,
+            "crust_destinations": self.crust_destinations,
             "summary": self.get_major_events_summary(),
         }
 
@@ -412,4 +486,3 @@ def create_tectonic_integration(
         seed = random.randint(1, 999999)
     
     return TectonicIntegration(width=width, height=height, seed=seed)
-

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { EcologicalRealismSummary } from "./EcologicalRealismSummary";
 import { TurnHighlights } from "./TurnHighlights";
+import { ClassicWorldDynamics } from "./ClassicWorldDynamics";
 
 interface Props {
   report: TurnReport;
@@ -203,6 +204,7 @@ export function TurnSummaryModal({ report, previousReport, onClose, onSelectSpec
           </section>
 
           <TurnHighlights report={report} previousReport={consecutivePrevious} onSelectSpecies={onSelectSpecies} />
+          <ClassicWorldDynamics report={report} onSelectSpecies={onSelectSpecies} />
           
           {/* 生态拟真统计 */}
           {report.ecological_realism && (
