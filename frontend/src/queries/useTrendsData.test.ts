@@ -158,6 +158,7 @@ describe('useTrendsData', () => {
     expect(envData[0]).toHaveProperty('turn');
     expect(envData[0]).toHaveProperty('temperature');
     expect(envData[0]).toHaveProperty('humidity');
+    expect(envData.every(point => point.humidity === null)).toBe(true);
     expect(envData[0]).toHaveProperty('sea_level');
   });
 

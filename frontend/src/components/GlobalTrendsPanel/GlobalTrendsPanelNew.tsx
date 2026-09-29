@@ -25,8 +25,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Sparklines,
-  SparklinesLine,
   ComposedChart,
 } from "recharts";
 import {
@@ -426,23 +424,16 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
           recentEvents.push({
             turn: r.turn_index,
             type: "分化",
-            title: `新物种 ${e.child_code} 诞生`,
-            detail: `从 ${e.parent_code} 分化`,
+            title: `新物种 ${e.new_lineage} 诞生`,
+            detail: `从 ${e.parent_lineage} 分化`,
             color: "#22c55e"
           });
         }
       });
     });
     
-    // 湿度数据
-    const humidity = latest.global_humidity ?? 0;
-    const prevHumidity = filteredReports.length > 1 
-      ? filteredReports[filteredReports.length - 2].global_humidity ?? humidity
-      : humidity;
-    
     // 环境趋势数据
     const tempTrend = environmentData.map(d => d.temperature);
-    const humidityTrend = environmentData.map(d => d.humidity);
     const seaLevelTrend = environmentData.map(d => d.sea_level);
     const speciesTrend = speciesTimeline.map(d => d.alive);
     const populationTrend = speciesTimeline.map(d => d.alive); // 使用物种数代替
@@ -462,10 +453,7 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
       extinctCount,
       totalBranching,
       recentEvents,
-      humidity,
-      humidityDelta: humidity - prevHumidity,
       tempTrend,
-      humidityTrend,
       seaLevelTrend,
       speciesTrend,
       populationTrend,
@@ -491,10 +479,6 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
                   <stop offset="5%" stopColor={CHART_COLORS.temperature} stopOpacity={0.3}/>
                   <stop offset="95%" stopColor={CHART_COLORS.temperature} stopOpacity={0}/>
                 </linearGradient>
-                <linearGradient id="humidityGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={CHART_COLORS.humidity} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={CHART_COLORS.humidity} stopOpacity={0}/>
-                </linearGradient>
                 <linearGradient id="seaLevelGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={CHART_COLORS.seaLevel} stopOpacity={0.3}/>
                   <stop offset="95%" stopColor={CHART_COLORS.seaLevel} stopOpacity={0}/>
@@ -506,7 +490,6 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: "12px" }} iconType="circle" />
               <Area type="monotone" dataKey="temperature" name="温度 (°C)" stroke={CHART_COLORS.temperature} fill="url(#tempGradient)" strokeWidth={2} dot={false} />
-              <Area type="monotone" dataKey="humidity" name="湿度 (%)" stroke={CHART_COLORS.humidity} fill="url(#humidityGradient)" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="sea_level" name="海平面 (m)" stroke={CHART_COLORS.seaLevel} strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
@@ -529,9 +512,8 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
             title="湿度详情"
             color={CHART_COLORS.humidity}
             items={[
-              { label: "当前湿度", value: `${(extraStats?.humidity || 0).toFixed(1)}%` },
-              { label: "湿度变化", value: `${(extraStats?.humidityDelta || 0) > 0 ? '+' : ''}${(extraStats?.humidityDelta || 0).toFixed(2)}%` },
-              { label: "最佳范围", value: "40-70%" },
+              { label: "当前湿度", value: "暂无数据" },
+              { label: "湿度变化", value: "暂无数据" },
             ]}
           />
           <InfoCard
@@ -908,13 +890,9 @@ export const GlobalTrendsPanel = memo(function GlobalTrendsPanel({
           <StatCard
             icon={<Droplets size={18} />}
             label="湿度"
-            value={(extraStats?.humidity || 0).toFixed(1)}
-            unit="%"
-            delta={extraStats?.humidityDelta || 0}
-            direction={getTrendDirection(extraStats?.humidity || 0, (extraStats?.humidity || 0) - (extraStats?.humidityDelta || 0))}
+            value="暂无数据"
             color={CHART_COLORS.humidity}
             delay={50}
-            sparklineData={extraStats?.humidityTrend}
           />
           <StatCard
             icon={<Waves size={18} />}

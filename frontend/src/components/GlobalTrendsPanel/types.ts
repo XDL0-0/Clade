@@ -27,7 +27,7 @@ export interface SummaryStats {
 export interface EnvironmentDataPoint {
   turn: number;
   temperature: number;
-  humidity: number;
+  humidity: number | null;
   sea_level: number;
 }
 
@@ -48,11 +48,11 @@ export interface PopulationData {
 }
 
 // ============ 生态角色分布 ============
-export interface RoleDistribution {
+export type RoleDistribution = {
   name: string;
   value: number;
   color: string;
-}
+};
 
 // ============ 进化事件 ============
 export interface EvolutionEvent {

@@ -7,7 +7,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useFoodWebData } from "@/components/FoodWebGraph/hooks/useFoodWebData";
-import type { SpeciesSnapshot } from "@/services/api.types";
+import type { FoodWebAnalysis, FoodWebData, SpeciesSnapshot } from "@/services/api.types";
 
 // Mock API 模块
 vi.mock("@/services/api", () => ({
@@ -28,53 +28,72 @@ function createWrapper() {
       },
     },
   });
-  // eslint-disable-next-line react/display-name
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  return function QueryWrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
 }
 
-const mockFoodWebData = {
-  species: [
+const mockFoodWebData: FoodWebData = {
+  nodes: [
     {
-      lineage_code: "A",
-      common_name: "Producer A",
+      id: "A",
+      name: "Producer A",
       trophic_level: 1,
+      population: 900,
       diet_type: "producer",
+      habitat_type: "grassland",
       prey_count: 0,
       predator_count: 1,
-      is_keystone: false,
     },
     {
-      lineage_code: "B",
-      common_name: "Herbivore B",
+      id: "B",
+      name: "Herbivore B",
       trophic_level: 2,
+      population: 400,
       diet_type: "herbivore",
+      habitat_type: "grassland",
       prey_count: 1,
       predator_count: 0,
-      is_keystone: true,
     },
   ],
-  relationships: [{ predator: "B", prey: "A", strength: 0.8 }],
+  links: [{ source: "A", target: "B", value: 0.8, prey_name: "Producer A", predator_name: "Herbivore B" }],
   keystone_species: ["B"],
+  trophic_levels: { 1: ["A"], 2: ["B"] },
+  total_species: 2,
+  total_links: 1,
 };
 
-const mockAnalysis = {
+const mockAnalysis: FoodWebAnalysis = {
   health_score: 0.75,
-  issues: ["Some issue"],
-  recommendations: ["Some recommendation"],
+  total_species: 2,
+  total_links: 1,
+  orphaned_consumers: [],
+  starving_species: [],
+  keystone_species: ["B"],
+  isolated_species: [],
+  avg_prey_per_consumer: 1,
+  food_web_density: 0.5,
+  bottleneck_warnings: [],
 };
 
-const mockSpeciesList: SpeciesSnapshot[] = [
-  { lineage_code: "A", population: 1000, status: "alive" } as SpeciesSnapshot,
-  { lineage_code: "B", population: 500, status: "alive" } as SpeciesSnapshot,
-];
+const mockSpeciesList: SpeciesSnapshot[] = mockFoodWebData.nodes.map((node) => ({
+  lineage_code: node.id,
+  latin_name: node.name,
+  common_name: node.name,
+  population: node.id === "A" ? 1000 : 500,
+  population_share: node.id === "A" ? 2 / 3 : 1 / 3,
+  status: "alive",
+  deaths: 0,
+  death_rate: 0,
+  ecological_role: node.diet_type,
+  notes: [],
+}));
 
 describe("useFoodWebData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (fetchFoodWeb as ReturnType<typeof vi.fn>).mockResolvedValue(mockFoodWebData);
-    (fetchFoodWebAnalysis as ReturnType<typeof vi.fn>).mockResolvedValue(mockAnalysis);
+    vi.mocked(fetchFoodWeb).mockResolvedValue(mockFoodWebData);
+    vi.mocked(fetchFoodWebAnalysis).mockResolvedValue(mockAnalysis);
   });
 
   it("初始化时应加载数据", async () => {
@@ -105,6 +124,13 @@ describe("useFoodWebData", () => {
     const { graphData } = result.current;
     expect(graphData.nodes.length).toBe(2);
     expect(graphData.links.length).toBe(1);
+    expect(graphData.links[0]).toEqual({
+      source: "A",
+      target: "B",
+      value: 0.8,
+      preyName: "Producer A",
+      predatorName: "Herbivore B",
+    });
 
     // 检查节点属性
     const nodeA = graphData.nodes.find((n) => n.id === "A");
@@ -131,6 +157,7 @@ describe("useFoodWebData", () => {
 
     expect(result.current.graphData.nodes.length).toBe(1);
     expect(result.current.graphData.nodes[0].id).toBe("A");
+    expect(result.current.graphData.links).toEqual([]);
 
     // 筛选关键物种
     act(() => {
@@ -159,7 +186,7 @@ describe("useFoodWebData", () => {
   });
 
   it("加载失败时应设置错误状态", async () => {
-    (fetchFoodWeb as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network error"));
+    vi.mocked(fetchFoodWeb).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useFoodWebData({ speciesList: mockSpeciesList }), {
       wrapper: createWrapper(),
@@ -173,7 +200,11 @@ describe("useFoodWebData", () => {
   });
 
   it("修复功能应调用 API 并刷新数据", async () => {
-    (repairFoodWeb as ReturnType<typeof vi.fn>).mockResolvedValue({ repaired_count: 2 });
+    vi.mocked(repairFoodWeb).mockResolvedValue({
+      repaired_count: 2,
+      changes: [],
+      analysis_after: { health_score: 1, orphaned_consumers: 0, starving_species: 0 },
+    });
 
     const { result } = renderHook(() => useFoodWebData({ speciesList: mockSpeciesList }), {
       wrapper: createWrapper(),

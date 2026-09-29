@@ -119,7 +119,7 @@ export function useTrendsData({ reports }: UseTrendsDataOptions): UseTrendsDataR
     return filteredReports.map((r) => ({
       turn: r.turn_index,
       temperature: r.global_temperature ?? 0,
-      humidity: 0, // TurnReport 暂无 humidity 字段
+      humidity: null, // TurnReport 暂无湿度数据，不能当成 0% 导出或绘图
       sea_level: r.sea_level ?? 0,
     }));
   }, [filteredReports]);

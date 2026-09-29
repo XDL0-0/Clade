@@ -41,7 +41,8 @@ export const SpeciesListHeader = memo(function SpeciesListHeader({
   onCollapse,
   onRefresh,
 }: SpeciesListHeaderProps) {
-  const hasFilters = filters.searchQuery || filters.roleFilter || filters.statusFilter !== "all";
+  const statusFilter = filters.statusFilter ?? "all";
+  const hasFilters = filters.searchQuery || filters.roleFilter || statusFilter !== "all";
 
   // 格式化大数字
   const formatNumber = (n: number): string => {
@@ -111,7 +112,7 @@ export const SpeciesListHeader = memo(function SpeciesListHeader({
         {/* 状态过滤 */}
         <div className="filter-group">
           <select
-            value={filters.statusFilter}
+            value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value as FilterOptions["statusFilter"])}
           >
             <option value="all">全部状态</option>
