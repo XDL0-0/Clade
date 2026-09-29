@@ -195,3 +195,11 @@
 - Removed legacy code：无。Save compatibility：存储表未改，旧任务与注释继续读取；旧离线任务不转为该模型任务。
 - Tests added/passed：未新增或运行；未发送试运行生成请求。Performance impact：单个异步worker最多一个推理请求，不阻塞数值回合；未测量模型延迟。
 - Known issues：尚未核验模型实际生成结果；快进造成旧版本结果过期时会被丢弃，这是既有规则。模型故障时由有界重试与备用文案处理。
+
+## Step 7d — 经典模式复用本地 Qwen
+
+- 将本机 `data/settings.json` 的默认服务商及九类文本能力指向 Mammoet / `qwen3.8-flash-next`；并发2、超时180秒、回合报告启用。该私有文件不进入Git。
+- Changed files：`frontend/vite.config.ts` 增加可选 `V2_BACKEND_PORT`，将 `/api/v2` 与经典 `/api` 分别代理。当前经典服务8025、新沙盒8024，共用手机入口5190。
+- New files / Removed legacy code：无。Tests added/passed：未新增或运行，未试调用模型。Performance impact：仅代理分流与本地配置，没有性能测量。
+- Save compatibility：经典与新沙盒继续读取各自存储；新沙盒现有地址、数据目录不变。
+- Known issues：经典服务首次空库启动日志包含既有 `ServiceContainer.habitat_manager` 缺失警告，异常被旧初始化逻辑捕获，HTTP服务已启动；本次未声称旧模式的完整游戏流程已通过验收。

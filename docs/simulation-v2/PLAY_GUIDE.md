@@ -55,6 +55,23 @@ BACKEND_PORT=8022 FRONTEND_PORT=5190 npm run dev -- --host 0.0.0.0 --strictPort
 如果使用同一个 Tailscale 网络，也可以用电脑的 Tailscale IP 与相同端口。
 校园或访客 Wi-Fi 如果隔离设备，可能无法直接通过局域网地址访问。
 
+## 经典模式的 Qwen
+
+经典模式入口为 `/`。本机经典配置位于仓库的 `data/settings.json`，默认服务商为
+`Mammoet · Qwen Next`，模型为 `qwen3.8-flash-next`，九类文本能力统一使用此模型。
+包括回合报告、物种生成、分化与杂交；并发为2，请求超时为180秒。
+凭据留在本机被Git忽略的配置文件中。Embedding 保持单独配置，不使用聊天模型替代。
+
+当前经典服务在8025，新沙盒服务在8024。共用手机入口5190时，启动前端使用：
+
+```bash
+BACKEND_PORT=8025 V2_BACKEND_PORT=8024 FRONTEND_PORT=5190 npm run dev -- --host 0.0.0.0 --strictPort
+```
+
+`/api/v2` 转发到新沙盒，其他 `/api` 转发到经典服务；省略 `V2_BACKEND_PORT` 时两者使用同一后端。
+经典服务启动命令为 `python -m uvicorn app.main:app --host 127.0.0.1 --port 8025`（在backend目录运行）。
+本轮只写入配置和启动服务，没有发送模型试生成请求。
+
 ## 当前进度
 
 这是新模拟核心的可玩入口，经典模式尚未整体切换。本机已配置 Mammoet 的 `qwen3.8-flash-next`：显著适应与分化发生后，后台生成中文叙事，故事面板标注“本地 Qwen”。快进期间来不及完成的旧回合任务会丢弃；模型不可用不阻塞世界推进。

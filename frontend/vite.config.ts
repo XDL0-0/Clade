@@ -8,6 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // 从环境变量读取端口配置，支持灵活部署
 const BACKEND_PORT = process.env.BACKEND_PORT || "8022";
+const V2_BACKEND_PORT = process.env.V2_BACKEND_PORT || BACKEND_PORT;
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || "5188", 10);
 
 export default defineConfig({
@@ -35,6 +36,10 @@ export default defineConfig({
   server: {
     port: FRONTEND_PORT,
     proxy: {
+      "/api/v2": {
+        target: `http://127.0.0.1:${V2_BACKEND_PORT}`,
+        changeOrigin: true,
+      },
       "/api": {
         // 使用 127.0.0.1 而非 localhost，避免 IPv6/IPv4 不匹配问题
         // 某些 Windows 系统上 localhost 会解析为 ::1 (IPv6)，而后端只监听 0.0.0.0 (IPv4)
