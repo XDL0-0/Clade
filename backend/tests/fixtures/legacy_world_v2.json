@@ -1,0 +1,33 @@
+{
+  "version": "2.0",
+  "turn_index": 3,
+  "species": [
+    {
+      "id": 1, "lineage_code": "A1", "latin_name": "Planta prima", "common_name": "初生草",
+      "description": "固定回归生产者", "status": "alive", "trophic_level": 1.0,
+      "morphology_stats": {"population": 1200, "body_weight_g": 10},
+      "abstract_traits": {"photosynthesis": 2}, "hidden_traits": {"speed": 1},
+      "ecological_vector": [0.1, 0.2], "diet_type": "autotroph", "habitat_type": "terrestrial"
+    },
+    {
+      "id": 2, "lineage_code": "B1", "latin_name": "Animal primus", "common_name": "初生虫",
+      "description": "固定回归消费者", "status": "alive", "trophic_level": 2.0,
+      "morphology_stats": {"population": 90, "body_weight_g": 20},
+      "abstract_traits": {"armor": 1}, "hidden_traits": {"speed": 2},
+      "ecological_vector": [0.2, 0.3], "diet_type": "herbivore", "habitat_type": "terrestrial",
+      "prey_species": ["A1"], "prey_preferences": {"A1": 1.0}
+    }
+  ],
+  "map_tiles": [
+    {"id": 1, "x": 0, "y": 0, "biome": "grassland", "elevation": 20, "cover": "grass", "temperature": 20, "humidity": 0.6, "resources": 100},
+    {"id": 2, "x": 1, "y": 0, "biome": "grassland", "elevation": 25, "cover": "grass", "temperature": 18, "humidity": 0.5, "resources": 80}
+  ],
+  "map_state": {"id": 1, "turn_index": 3, "sea_level": 0, "global_avg_temperature": 19, "extra_data": {"map_seed": 42}},
+  "habitats": [
+    {"tile_id": 1, "species_id": 1, "population": 700, "suitability": 0.8, "turn_index": 2},
+    {"tile_id": 2, "species_id": 1, "population": 500, "suitability": 0.7, "turn_index": 2},
+    {"tile_id": 1, "species_id": 2, "population": 90, "suitability": 0.8, "turn_index": 2}
+  ],
+  "history_logs": [{"turn_index": 2, "pressures_summary": "", "narrative": "固定模板", "record_data": {"turn_index": 2, "species": []}}],
+  "genus_list": []
+}

@@ -12,6 +12,9 @@ import numpy as np
 from dataclasses import dataclass
 from typing import Any
 
+# 地块矩阵在 float32 中计算后转为 float64，最小因子允许一 float32 ULP。
+MIN_OVERLAP_ABS_TOL = float(np.spacing(np.float32(0.1)))
+
 # 模拟 Species 对象
 @dataclass
 class MockSpecies:
@@ -72,8 +75,9 @@ class TestNicheTensorCompute:
         assert overlap_matrix[0, 1] == overlap_matrix[1, 0]  # 对称
         
         # 物种3和其他物种无重叠
-        assert overlap_matrix[0, 2] == 0.1  # 最小重叠因子
-        assert overlap_matrix[1, 2] == 0.1
+        np.testing.assert_allclose(
+            overlap_matrix[:2, 2], 0.1, rtol=0, atol=MIN_OVERLAP_ABS_TOL
+        )
         
         # 验证指标
         assert metrics.species_count == 3
@@ -498,7 +502,9 @@ class TestIntegration:
         assert shared[0, 1] >= 1  # 至少1个共享地块
         
         # 物种3与1,2无共享
-        assert niche_overlap[0, 2] == 0.1  # 最小重叠因子
+        assert niche_overlap[0, 2] == pytest.approx(
+            0.1, rel=0, abs=MIN_OVERLAP_ABS_TOL
+        )
         assert shared[0, 2] == 0
 
 

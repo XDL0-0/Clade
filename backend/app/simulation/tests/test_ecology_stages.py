@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 
 # 标记整个模块使用 asyncio
-pytestmark = pytest.mark.asyncio
 
 
 class TestSimpleMortalityStage:

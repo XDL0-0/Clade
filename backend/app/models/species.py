@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import DateTime
 from sqlmodel import Column, Field, JSON, Relationship, SQLModel
 
 
@@ -21,7 +22,8 @@ class Species(SQLModel, table=True):
     parent_code: str | None = Field(default=None, index=True)
     status: str = Field(default="alive", index=True)
     created_turn: int = 0
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # Existing SQLite rows and legacy saves use naive UTC, not timezone-aware values.
+    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_type=DateTime)
     is_background: bool = Field(default=False, index=True)
     trophic_level: float = Field(default=1.0, index=True)
     # 基因多样性：Embedding 空间中的可达范围半径

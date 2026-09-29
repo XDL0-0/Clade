@@ -12,6 +12,7 @@ import json
 import logging
 import random
 import copy
+import inspect
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -177,6 +178,9 @@ class RegressionTestRunner:
         
         for old_snap, new_snap in zip(old_snapshots, new_snapshots):
             turn = old_snap.turn_index
+            if turn != new_snap.turn_index:
+                result.passed = False
+                result.details.append(f"回合标识不匹配: {turn} vs {new_snap.turn_index}")
             
             # 对比灭绝事件
             old_extinctions = set(old_snap.extinctions)
@@ -201,10 +205,14 @@ class RegressionTestRunner:
                 new_sp = new_snap.species_data.get(code)
                 
                 if old_sp is None or new_sp is None:
+                    result.passed = False
                     result.details.append(
                         f"回合 {turn} 物种 {code} 存在性差异"
                     )
                     continue
+                if (old_sp.status, old_sp.trophic_level) != (new_sp.status, new_sp.trophic_level):
+                    result.passed = False
+                    result.details.append(f"回合 {turn} 物种 {code} 状态或营养级不匹配")
                 
                 if old_sp.population > 0:
                     pop_diff = abs(old_sp.population - new_sp.population) / old_sp.population
@@ -221,6 +229,8 @@ class RegressionTestRunner:
                 biomass_diff = abs(old_snap.total_biomass - new_snap.total_biomass) / old_snap.total_biomass
                 if biomass_diff > result.biomass_diff:
                     result.biomass_diff = biomass_diff
+            elif new_snap.total_biomass != 0:
+                result.biomass_diff = 1.0
         
         result.max_population_diff = max_pop_diff
         result.max_diff_species = max_diff_species
@@ -251,36 +261,33 @@ class RegressionTestRunner:
         self,
         engine,
         command,
-        capture_callback,
+        capture_callback=None,
+        *,
+        species_reader=None,
     ) -> list[TurnSnapshot]:
-        """运行引擎并捕获快照"""
-        from ..repositories.species_repository import species_repository
-        
+        """Capture before the next turn can overwrite repository state.
+
+        Callers must provide isolated worlds and reset their inputs themselves;
+        this utility does not turn the legacy engine into a deterministic model.
+        The optional callback receives an independent snapshot after each turn.
+        """
+        if species_reader is None:
+            from ..repositories.species_repository import species_repository
+            species_reader = species_repository.list_species
         snapshots = []
-        original_callback = engine._event_callback
-        
-        # 设置回调来捕获每回合结束时的状态
-        def on_event(event_type, message, category, **extra):
-            if original_callback:
-                original_callback(event_type, message, category, **extra)
-        
-        engine._event_callback = on_event
-        
-        try:
-            reports = await engine.run_turns_async(command)
-            
-            # 从报告中构建快照
-            for report in reports:
-                species_list = species_repository.list_species()
-                snapshot = self._capture_turn_snapshot(
-                    report.turn_index,
-                    species_list,
-                    report,
-                )
-                snapshots.append(snapshot)
-        finally:
-            engine._event_callback = original_callback
-        
+        one_turn = copy.deepcopy(command)
+        one_turn.rounds = 1
+        for _ in range(command.rounds):
+            reports = await engine.run_turns_async(copy.deepcopy(one_turn))
+            if len(reports) != 1:
+                raise RuntimeError("Regression capture requires exactly one report per turn")
+            report = reports[0]
+            snapshot = self._capture_turn_snapshot(report.turn_index, species_reader(), report)
+            snapshots.append(snapshot)
+            if capture_callback is not None:
+                outcome = capture_callback(copy.deepcopy(snapshot))
+                if inspect.isawaitable(outcome):
+                    await outcome
         return snapshots
 
 
@@ -482,6 +489,5 @@ async def run_quick_consistency_check(engine, command) -> str:
         command.rounds = original_rounds
     
     return checker.get_report()
-
 
 

@@ -162,12 +162,14 @@ class TestConfigServiceContract:
     """ConfigService 缓存和配置加载契约测试"""
     
     @pytest.fixture
-    def config_service(self):
+    def config_service(self, tmp_path):
         """创建 ConfigService 实例"""
         from ...core.config_service import ConfigService
         from ...core.config import get_settings
         
-        settings = get_settings()
+        settings = get_settings().model_copy(
+            update={"ui_config_path": str(tmp_path / "settings.json")}
+        )
         return ConfigService(settings)
     
     def test_config_service_initialization(self, config_service):
@@ -175,7 +177,8 @@ class TestConfigServiceContract:
         assert config_service is not None
     
     def test_config_service_caching(self, config_service):
-        """测试配置缓存行为"""
+        """配置文件不存在时默认配置也应复用缓存"""
+        assert not config_service._ui_config_path.exists()
         # 首次调用应该加载配置
         config1 = config_service.get_ui_config()
         
@@ -184,6 +187,32 @@ class TestConfigServiceContract:
         
         # 应该是同一个对象（缓存）
         assert config1 is config2
+        assert config_service.get_ecology_balance() is config1.ecology_balance
+        assert config_service.get_mortality() is config1.mortality
+
+    def test_config_service_loads_file_created_after_default(self, config_service):
+        """默认缓存不能阻止后来出现的配置文件被读取"""
+        default = config_service.get_ui_config()
+        config_service._ui_config_path.write_text(
+            '{"autosave_interval": 7}', encoding="utf-8"
+        )
+
+        loaded = config_service.get_ui_config()
+
+        assert loaded is not default
+        assert loaded.autosave_interval == 7
+        assert config_service.get_ui_config() is loaded
+
+    def test_config_service_invalidates_default_cache(self, config_service):
+        """显式失效后默认配置必须重建，而后继续缓存"""
+        original = config_service.get_ui_config()
+
+        config_service.invalidate_cache()
+        refreshed = config_service.get_ui_config()
+
+        assert refreshed is not original
+        assert refreshed == original
+        assert config_service.get_ui_config() is refreshed
     
     def test_config_service_ecology_balance(self, config_service):
         """测试生态平衡配置获取"""
@@ -498,7 +527,7 @@ class TestConfigInjectionContract:
 # ============================================================================
 
 class TestServiceConfigInjectionContract:
-    """服务类配置注入契约测试 - 验证服务通过构造函数接收配置，无静默回退"""
+    """服务类配置注入与旧死亡率占位类兼容契约测试"""
     
     def test_tile_mortality_engine_accepts_config(self):
         """测试 TileBasedMortalityEngine 接受配置注入"""
@@ -523,16 +552,18 @@ class TestServiceConfigInjectionContract:
         assert engine._mortality_config is mortality_config
         assert engine._speciation_config is speciation_config
     
-    def test_tile_mortality_engine_warns_without_config(self, caplog):
-        """测试 TileBasedMortalityEngine 未提供配置时发出警告"""
-        import logging
+    def test_tile_mortality_engine_without_config_is_compatibility_placeholder(self):
+        """旧引擎不创建默认配置，也不执行已迁移到张量阶段的计算"""
         from ...simulation.tile_based_mortality import TileBasedMortalityEngine
-        
-        with caplog.at_level(logging.WARNING):
-            engine = TileBasedMortalityEngine()
-        
-        # 应该有警告日志
-        assert "未注入" in caplog.text or "使用默认值" in caplog.text
+
+        engine = TileBasedMortalityEngine()
+
+        assert engine._ecology_config is None
+        assert engine._mortality_config is None
+        assert engine._speciation_config is None
+        assert engine.evaluate([MagicMock()]) == []
+        assert engine.get_speciation_candidates() == {}
+        assert engine.export_tensor_state() is None
     
     def test_tile_mortality_engine_reload_config(self, mock_container):
         """测试 TileBasedMortalityEngine 热加载配置"""

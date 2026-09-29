@@ -13,9 +13,6 @@ from ..stage_config import StageLoader, stage_registry, AVAILABLE_MODES
 from ..stages import BaseStage, StageDependency, get_default_stages
 from ..context import SimulationContext
 
-# 标记整个模块使用 asyncio
-pytestmark = pytest.mark.asyncio
-
 
 # ============================================================================
 # Test Stages
@@ -233,7 +230,7 @@ class TestStageLoader:
         
         for mode in AVAILABLE_MODES:
             try:
-                stages = loader.load_stages_for_mode(mode, validate=False)
+                stages = loader.load_stages_for_mode(mode)
                 # 验证返回的是阶段列表
                 assert isinstance(stages, list)
                 # 验证每个阶段都有 execute 方法
@@ -262,8 +259,8 @@ class TestStageRegistry:
         # 验证核心阶段已注册
         expected_stages = [
             "init", "parse_pressures", "map_evolution",
-            "fetch_species", "preliminary_mortality",
-            "migration", "final_mortality", "population_update",
+            "fetch_species", "pressure_tensor", "tensor_state_init",
+            "tensor_ecology", "tensor_state_sync", "population_update",
         ]
         
         for stage_name in expected_stages:

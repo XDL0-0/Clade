@@ -10,6 +10,8 @@ import pytest
 from ..hybrid import HybridCompute, get_compute, reset_compute
 
 
+pytestmark = pytest.mark.gpu
+
 class TestHybridCompute:
     """混合计算测试套件"""
     

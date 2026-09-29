@@ -19,13 +19,25 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Type, Dict
 
 if TYPE_CHECKING:
-    from .stages import BaseStage
+    from .stages import BaseStage, StageDependency
 
 logger = logging.getLogger(__name__)
 
 
 # 支持的模式名称
 AVAILABLE_MODES = ["minimal", "standard", "full", "debug"]
+
+
+class StageConfigError(ValueError):
+    """Invalid stage configuration; never fall back to a different pipeline."""
+
+
+def _validate_mode(mode: str) -> str:
+    if mode not in AVAILABLE_MODES:
+        raise StageConfigError(
+            f"Unknown mode {mode!r}; available modes: {', '.join(AVAILABLE_MODES)}"
+        )
+    return mode
 
 
 # ============================================================================
@@ -140,8 +152,7 @@ class ModeParameters:
             "full": cls.for_full,
             "debug": cls.for_debug,
         }
-        factory = factories.get(mode, cls.for_standard)
-        return factory()
+        return factories[_validate_mode(mode)]()
     
     def merge(self, overrides: Dict[str, Any]) -> "ModeParameters":
         """合并自定义覆盖参数"""
@@ -187,31 +198,52 @@ class ModeParameters:
 
 @dataclass
 class StageConfig:
-    """单个阶段的配置"""
+    """Stage ``name`` is a stable registry ID, not the instance's display name.
+
+    ``params`` are constructor arguments. An explicit top-level ``order`` wins
+    over the constructed order; omission preserves the constructor's default.
+    """
     name: str
     enabled: bool = True
-    order: int = 0
+    order: int | None = None
     params: dict[str, Any] = field(default_factory=dict)
     
     # 可选：阶段类（用于动态实例化）
     stage_class: Type[BaseStage] | None = None
     # 可选：阶段工厂函数（用于复杂的实例化逻辑）
     factory: Callable[..., BaseStage] | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise StageConfigError("Stage name must be a non-empty registry ID")
+        if not isinstance(self.enabled, bool):
+            raise StageConfigError(f"Stage {self.name!r}: enabled must be a boolean")
+        if self.order is not None and type(self.order) is not int:
+            raise StageConfigError(f"Stage {self.name!r}: order must be an integer")
+        if not isinstance(self.params, dict) or any(
+            not isinstance(key, str) for key in self.params
+        ):
+            raise StageConfigError(f"Stage {self.name!r}: params must be a mapping with string keys")
     
     @classmethod
     def from_dict(cls, data: dict) -> "StageConfig":
         """从字典创建配置"""
+        if not isinstance(data, dict) or "name" not in data:
+            raise StageConfigError("Each stage must be a mapping with a registry ID in 'name'")
+        unknown_keys = set(data) - {"name", "enabled", "order", "params"}
+        if unknown_keys:
+            raise StageConfigError(f"Stage {data['name']!r}: unknown keys {sorted(unknown_keys, key=str)}")
         return cls(
             name=data["name"],
             enabled=data.get("enabled", True),
-            order=data.get("order", 0),
+            order=data.get("order"),
             params=data.get("params", {}),
         )
 
 
 @dataclass 
 class PipelineStageConfig:
-    """流水线阶段配置集合"""
+    """Legacy code configuration, retained for callers; not a loader fallback."""
     
     # 核心阶段（总是启用）
     init: StageConfig = field(default_factory=lambda: StageConfig(
@@ -323,7 +355,7 @@ class PipelineStageConfig:
         ]
         return sorted(
             [c for c in all_configs if c.enabled],
-            key=lambda c: c.order
+            key=lambda c: c.order if c.order is not None else 0
         )
     
     def disable_stage(self, name: str) -> None:
@@ -374,77 +406,69 @@ def create_stage_config_from_engine_flags(
 
 def load_stage_config_from_yaml(
     yaml_path: str | Path | None = None,
-    mode: str = "standard",
+    mode: str | None = None,
+    *,
+    include_disabled: bool = False,
 ) -> list[StageConfig]:
-    """从 YAML 文件加载阶段配置
-    
-    Args:
-        yaml_path: YAML 配置文件路径，为 None 时使用默认路径
-        mode: 使用的模式名称 (minimal/standard/full/debug)
-    
-    Returns:
-        启用的阶段配置列表（按顺序排列）
+    """Load a mode without silently substituting another pipeline.
+
+    Selection precedence is explicit ``mode`` > YAML ``mode`` > ``standard``.
+    The bundled file defaults to standard; full is only selected explicitly by
+    the caller or configuration. Missing/invalid files and empty mode lists are
+    errors. Omitted stage orders are resolved by StageLoader after construction.
+    ``include_disabled`` lets the loader validate disabled registry IDs too;
+    callers receive only enabled entries by default.
     """
+    if mode is not None:
+        _validate_mode(mode)
+
+    import yaml
+
+    config_path = Path(yaml_path) if yaml_path is not None else Path(__file__).with_suffix(".yaml")
     try:
-        import yaml
-    except ImportError:
-        logger.warning("PyYAML not installed, using default config")
-        return [StageConfig.from_dict({"name": s.name, "enabled": s.enabled, "order": s.order})
-                for s in DEFAULT_STAGE_CONFIG.get_enabled_stages()]
-    
-    if yaml_path is None:
-        yaml_path = Path(__file__).parent / "stage_config.yaml"
-    else:
-        yaml_path = Path(yaml_path)
-    
-    if not yaml_path.exists():
-        logger.warning(f"Config file not found: {yaml_path}, using default")
-        return [StageConfig.from_dict({"name": s.name, "enabled": s.enabled, "order": s.order})
-                for s in DEFAULT_STAGE_CONFIG.get_enabled_stages()]
-    
-    try:
-        with open(yaml_path, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
-        return [StageConfig.from_dict({"name": s.name, "enabled": s.enabled, "order": s.order})
-                for s in DEFAULT_STAGE_CONFIG.get_enabled_stages()]
-    
-    # 获取当前模式
-    current_mode = config_data.get("mode", mode)
-    if current_mode not in AVAILABLE_MODES:
-        logger.warning(f"Unknown mode '{current_mode}', using 'standard'")
-        current_mode = "standard"
-    
-    # 获取模式配置
-    modes = config_data.get("modes", {})
-    mode_config = modes.get(current_mode, {})
-    stages_data = mode_config.get("stages", [])
-    
-    if not stages_data:
-        logger.warning(f"No stages defined for mode '{current_mode}'")
-        return []
-    
-    # 构建配置列表
+        with config_path.open(encoding="utf-8") as config_file:
+            config_data = yaml.safe_load(config_file)
+    except (OSError, yaml.YAMLError) as exc:
+        raise StageConfigError(f"Cannot load stage configuration {config_path}: {exc}") from exc
+
+    if not isinstance(config_data, dict):
+        raise StageConfigError("Stage configuration must be a mapping")
+    current_mode = _validate_mode(mode if mode is not None else config_data.get("mode", "standard"))
+    modes = config_data.get("modes")
+    if not isinstance(modes, dict) or current_mode not in modes:
+        raise StageConfigError(f"No configuration defined for mode {current_mode!r}")
+    mode_config = modes[current_mode]
+    if not isinstance(mode_config, dict):
+        raise StageConfigError(f"Configuration for mode {current_mode!r} must be a mapping")
+    stages_data = mode_config.get("stages")
+    if not isinstance(stages_data, list) or not stages_data:
+        raise StageConfigError(f"Mode {current_mode!r} must define a non-empty stages list")
+
     configs = []
+    seen = set()
     for stage_data in stages_data:
-        if stage_data.get("enabled", True):
-            configs.append(StageConfig.from_dict(stage_data))
-    
-    # 按顺序排序
-    configs.sort(key=lambda c: c.order)
-    
-    logger.info(f"Loaded {len(configs)} stages for mode '{current_mode}'")
-    return configs
+        config = StageConfig.from_dict(stage_data)
+        if config.name in seen:
+            raise StageConfigError(f"Duplicate stage ID {config.name!r} in mode {current_mode!r}")
+        seen.add(config.name)
+        configs.append(config)
+    if not any(config.enabled for config in configs):
+        raise StageConfigError(f"Mode {current_mode!r} has no enabled stages")
+
+    # Keep disabled entries for registry validation too: a typo must not become
+    # a surprise when the entry is later enabled. The loader filters them out.
+    configs.sort(key=lambda config: config.order if config.order is not None else 0)
+    logger.info("Loaded mode %r from %s", current_mode, config_path)
+    return configs if include_disabled else [config for config in configs if config.enabled]
 
 
 def get_mode_description(mode: str) -> str:
     """获取模式描述"""
     descriptions = {
-        "minimal": "极简模式：仅保留压力、简单死亡率、繁殖",
-        "standard": "标准模式：保留主流程，禁用最重的AI阶段",
-        "full": "全功能模式：所有Stage启用",
-        "debug": "调试模式：专用调试Stage，打印更多日志",
+        "minimal": "极简模式：核心数据与张量生态阶段",
+        "standard": "标准模式：默认数据流与张量生态阶段",
+        "full": "扩展模式：显式配置的附加阶段与张量生态阶段",
+        "debug": "调试模式：核心阶段、种群快照与详细日志",
     }
     return descriptions.get(mode, f"未知模式: {mode}")
 
@@ -555,12 +579,16 @@ class StageRegistry:
             self._initialized = True
     
     def register(self, name: str, stage_class: Type[BaseStage]) -> None:
-        """注册阶段类
+        """Register a stable ID; registering the same class twice is harmless.
         
         Args:
             name: 阶段名称
             stage_class: 阶段类
         """
+        if not isinstance(name, str) or not name.strip():
+            raise StageConfigError("Stage registry ID must be a non-empty string")
+        if name in self._stages and self._stages[name] is not stage_class:
+            raise StageConfigError(f"Stage ID {name!r} is already registered")
         self._stages[name] = stage_class
     
     def get(self, name: str) -> Type[BaseStage] | None:
@@ -590,7 +618,9 @@ class StageRegistry:
         """
         stage_class = self.get(name)
         if stage_class:
-            return stage_class(**kwargs)
+            stage = stage_class(**kwargs)
+            stage.stage_id = name
+            return stage
         return None
 
 
@@ -617,6 +647,58 @@ def register_stage(name: str):
 # ============================================================================
 # StageLoader - 阶段加载器
 # ============================================================================
+
+@dataclass
+class _DependencyStage:
+    """Validator view: IDs are names here; runtime display names stay intact."""
+
+    name: str
+    order: int
+    dependency: StageDependency
+
+    def get_dependency(self) -> StageDependency:
+        return self.dependency
+
+
+def _dependency_stages(stages: list[BaseStage]) -> list[_DependencyStage]:
+    """Accept stable IDs and unambiguous legacy display-name dependencies.
+
+    Existing built-ins/plugins declare display names. Resolve those at this
+    boundary without mutating plugin instances or weakening field validation.
+    New plugins can use registry IDs directly, even when display names change.
+    """
+    from .stages import DependencyError, StageDependency
+
+    stage_ids = {stage.stage_id for stage in stages}
+    display_ids: dict[str, list[str]] = {}
+    for stage in stages:
+        display_ids.setdefault(stage.name, []).append(stage.stage_id)
+
+    def resolve(dependency: str) -> str:
+        if dependency in stage_ids:
+            return dependency
+        candidates = display_ids.get(dependency, [])
+        if len(candidates) > 1:
+            raise DependencyError(
+                f"Ambiguous display-name dependency {dependency!r}; use a stage registry ID"
+            )
+        return candidates[0] if candidates else dependency
+
+    views = []
+    for stage in stages:
+        dependency = stage.get_dependency()
+        views.append(_DependencyStage(
+            name=stage.stage_id,
+            order=stage.order,
+            dependency=StageDependency(
+                requires_stages={resolve(name) for name in dependency.requires_stages},
+                optional_stages={resolve(name) for name in dependency.optional_stages},
+                requires_fields=dependency.requires_fields,
+                writes_fields=dependency.writes_fields,
+            ),
+        ))
+    return views
+
 
 class StageLoader:
     """阶段加载器
@@ -646,94 +728,70 @@ class StageLoader:
     
     def load_stages_for_mode(
         self,
-        mode: str = "standard",
+        mode: str | None = None,
         validate: bool = True,
     ) -> list[BaseStage]:
-        """根据模式加载阶段列表
-        
-        Args:
-            mode: 模式名称 (minimal/standard/full/debug)
-            validate: 是否验证依赖关系
-        
-        Returns:
-            排序好的 Stage 实例列表
-        
-        Raises:
-            DependencyError: 依赖验证失败时
+        """Construct configured stages, then validate their resolved order.
+
+        Configuration/constructor errors always fail, including when
+        ``validate=False`` is used to inspect a dependency graph. Dependency
+        validation remains enabled by default and accepts stable registry IDs
+        as well as legacy display-name declarations.
         """
         from .stages import StageDependencyValidator, DependencyError
-        
-        # 加载配置
-        stage_configs = load_stage_config_from_yaml(self.yaml_path, mode)
-        
-        if not stage_configs:
-            logger.warning(f"模式 '{mode}' 没有定义任何阶段，使用默认阶段")
-            from .stages import get_default_stages
-            return get_default_stages()
-        
-        # 构建阶段实例
-        stages = []
-        for config in stage_configs:
-            if not config.enabled:
-                continue
-            
-            stage = self._create_stage(config)
-            if stage:
-                stages.append(stage)
-            else:
-                self._validation_warnings.append(
-                    f"⚠️ 阶段 '{config.name}' 未注册，已跳过"
-                )
-        
-        # 按 order 排序
-        stages.sort(key=lambda s: s.order)
-        
-        # 验证依赖
-        if validate and stages:
-            validator = StageDependencyValidator(stages)
-            result = validator.validate()
-            
-            self._validation_errors = result.errors
-            self._validation_warnings.extend(result.warnings)
-            
-            if not result.valid:
-                error_msg = (
-                    f"模式 '{mode}' 依赖验证失败:\n" +
-                    "\n".join(result.errors)
-                )
-                logger.error(error_msg)
-                raise DependencyError(error_msg)
-            
-            logger.info(f"[StageLoader] 模式 '{mode}' 加载了 {len(stages)} 个阶段")
-            if result.warnings:
-                for warn in result.warnings:
-                    logger.warning(warn)
-        
-        return stages
-    
-    def _create_stage(self, config: StageConfig) -> BaseStage | None:
-        """从配置创建阶段实例
-        
-        Args:
-            config: 阶段配置
-        
-        Returns:
-            Stage 实例，如果未注册则返回 None
-        """
-        stage_class = self.registry.get(config.name)
-        if not stage_class:
-            return None
-        
+
+        self._validation_errors = []
+        self._validation_warnings = []
         try:
-            # 如果有参数，尝试传递
-            if config.params:
-                return stage_class(**config.params)
-            else:
-                return stage_class()
-        except Exception as e:
-            logger.warning(f"创建阶段 '{config.name}' 失败: {e}")
-            return None
-    
+            stage_configs = load_stage_config_from_yaml(self.yaml_path, mode, include_disabled=True)
+            for config in stage_configs:
+                if self.registry.get(config.name) is None:
+                    raise StageConfigError(f"Unknown stage ID {config.name!r}")
+
+            stages = [self._create_stage(config) for config in stage_configs if config.enabled]
+            stages.sort(key=lambda stage: stage.order)
+            if validate:
+                result = StageDependencyValidator(_dependency_stages(stages)).validate()
+                self._validation_warnings = result.warnings
+                if not result.valid:
+                    self._validation_errors = result.errors
+                    raise DependencyError(
+                        f"Mode {mode or 'configured default'!r} dependency validation failed:\n"
+                        + "\n".join(result.errors)
+                    )
+                for warning in result.warnings:
+                    logger.warning(warning)
+            logger.info("[StageLoader] Loaded %s stages", len(stages))
+            return stages
+        except (StageConfigError, DependencyError) as exc:
+            if not self._validation_errors:
+                self._validation_errors = [str(exc)]
+            raise
+
+    def _create_stage(self, config: StageConfig) -> BaseStage:
+        """Pass params unchanged; apply an explicit scheduling order afterwards.
+
+        Runtime ``name`` remains the constructor's display name. ``stage_id``
+        identifies the configuration entry without renaming custom stages.
+        """
+        constructor = config.factory or config.stage_class or self.registry.get(config.name)
+        if constructor is None:
+            raise StageConfigError(f"Unknown stage ID {config.name!r}")
+        try:
+            stage = constructor(**config.params)
+            stage.stage_id = config.name
+            if config.order is not None:
+                # BaseStage exposes order as a read-only property over _order.
+                # Do not inject an unsupported order argument into constructors.
+                stage._order = config.order
+                if stage.order != config.order:
+                    raise ValueError("stage does not support the configured order")
+            if type(stage.order) is not int:
+                raise ValueError("stage order must be an integer")
+            return stage
+        except Exception as exc:
+            raise StageConfigError(f"Cannot construct stage {config.name!r}: {exc}") from exc
+
     def get_validation_errors(self) -> list[str]:
         """获取验证错误"""
         return self._validation_errors.copy()
@@ -759,7 +817,7 @@ class StageLoader:
         
         try:
             stages = self.load_stages_for_mode(mode, validate=False)
-            validator = StageDependencyValidator(stages)
+            validator = StageDependencyValidator(_dependency_stages(stages))
             result = validator.validate()
             return result.dependency_graph
         except Exception as e:
@@ -861,4 +919,3 @@ def _register_default_stages() -> None:
 
 # 自动注册默认阶段
 _register_default_stages()
-

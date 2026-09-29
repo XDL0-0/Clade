@@ -1,7 +1,8 @@
 # Simulation Pipeline Stage Configuration
 # GPU 张量流水线 + 核心数据阶段
 
-# 当前使用的模式
+# 默认模式：显式传入的 mode 优先于此值；未指定时使用 standard
+# name 是稳定注册 ID；order 覆盖阶段构造函数的顺序；params 原样传给构造函数
 mode: standard
 
 # 模式定义
@@ -90,7 +91,7 @@ modes:
         order: 95
       - name: speciation
         enabled: true
-        order: 120
+        order: 125
       - name: background_management
         enabled: true
         order: 130
@@ -117,7 +118,7 @@ modes:
         order: 180
 
   full:
-    description: "全功能模式：所有阶段 + GPU张量计算"
+    description: "扩展模式：显式列出的附加阶段 + GPU张量计算"
     stages:
       - name: init
         enabled: true
@@ -175,7 +176,7 @@ modes:
         order: 115
       - name: speciation
         enabled: true
-        order: 120
+        order: 125
       - name: background_management
         enabled: true
         order: 130
@@ -202,7 +203,7 @@ modes:
         order: 164
       - name: embedding_hooks
         enabled: true
-        order: 165
+        order: 166
       - name: save_history
         enabled: true
         order: 170

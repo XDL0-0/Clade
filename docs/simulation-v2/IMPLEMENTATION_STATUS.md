@@ -5,11 +5,11 @@
 | 步骤 | 状态 | 验收边界 |
 |---|---|---|
 | Audit / Design | 已交付 | 七份文档、执行链映射、499文件清单与失败基线 |
-| B0 后端测试入口/依赖 | 进行中 | 全量收集、隔离DB/网络、依赖锁、迁移代码lint/typecheck |
+| B0 后端测试入口/依赖 | 已通过 | 全量收集、隔离DB/网络、65包hash锁与干净环境安装 |
 | B1 前端基线 | 已通过 | 14 tests、lint无错误且无新增warning、typecheck、build |
-| B2 Stage配置合同 | 进行中 | 明确模式优先级、稳定ID、错误依赖拒绝、四种清单 |
-| B3 回归捕获/旧档fixture | 进行中 | 逐回合捕获、结构差异失败、JSON/gzip旧档roundtrip |
-| Foundation | 待实施 | TurnContext / StageResult / WorldEvent / WorldVersion / SeedManager |
+| B2 Stage配置合同 | 已通过 | 明确模式优先级、稳定ID、错误依赖拒绝、四种清单 |
+| B3 回归捕获/旧档fixture | 工具已通过，生产长跑oracle待建立 | 逐回合捕获、结构差异失败、JSON/gzip旧档roundtrip |
+| Foundation | 实施中 | TurnContext / StageResult / WorldEvent / WorldVersion / SeedManager |
 | Async Safety | 待实施 | 运行协调、AIJob、幂等、版本/lease、stale拒绝 |
 | Persistence | 待实施 | checkpoint/delta、原子提交、timeline、replay、旧档导入 |
 | Environment / Resources | 待迁移 | 气候/地质/水文/biome、NPP与资源再生 |
@@ -31,3 +31,16 @@
 - Performance impact：只改最小展示/类型合同；未做运行性能压测。
 - Save compatibility：后端存档路径未改；另批次新增旧档回归测试。
 - Next：完成B0/B2/B3验收后建立Foundation。
+
+## B0 / B2 / B3 — 后端基线、配置与旧档回归
+
+- Changed files：pyproject.toml、StageLoader/YAML与相关测试、ConfigService及API合同测试、插件fixture/ancestry_embedding、3个带旧时间戳的models、regression_test.py、niche浮点断言与GPU测试标记。
+- New files：requirements-dev.lock、TESTING.md、顶层conftest、安全测试、插件/物种测试包入口、Stage配置测试、check_v2.py、逐回合捕获测试、legacy_world_v2.json及JSON/gzip roundtrip测试。
+- Removed legacy code：无。旧引擎/存档仍保留。
+- Tests added：配置四模式12/22/31/13精确清单，非法mode/未知或重复stage/依赖拒绝；默认配置缓存与后来出现的配置文件；逐回合捕获/缺失报告/结构差异；旧JSON/gzip；测试环境DB/网络隔离。
+- Tests passed：共享工作区全量427 passed、0 skip、9 warnings；88项Stage定向、55项API/niche、9项捕获/旧档测试包含在全量中，不能重复累加。65包hash锁在干净Python3.12/Linux环境安装、pip check与收集通过。
+- 审查修复：SQLModel新版本默认UTC字段拒绝旧naive时间戳，显式SQLAlchemy DateTime保留旧存储语义；Ancestry在向量填充前过滤空向量导致全部跳过，改为收集候选后批量embedding；niche断言按float32一ULP检查，未放宽生态阈值。
+- Known issues：旧tensor包导入仍初始化GPU，-m not-gpu不等于无GPU可收集；deprecated warnings保留。B3目前修复捕获工具并建立旧档fixture，尚未证明整个旧GPU pipeline跨进程确定性；后续迁移的数值fixture与100/500/1000长跑分别验收。
+- Performance impact：未做运行压测；默认standard仍22stage；显式full现在可调度31stage，增加的运行成本尚未测。
+- Save compatibility：原version 2.0普通JSON与gzip fixture的物种人口、食物网、地图、habitat与turn读取/保存/重载通过，源fixture保持不变；不是所有玩家档的覆盖证明。
+- Next：纯Foundation接口、深immutable/Seed/StageDelta验收，再进入AI任务与持久化。

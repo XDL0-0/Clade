@@ -5,15 +5,10 @@ Test Fixtures - 测试夹具
 """
 
 import pytest
-import pytest_asyncio
 import random
 from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock, AsyncMock
-
-# 配置 pytest-asyncio
-pytest_plugins = ('pytest_asyncio',)
-
 
 # ============================================================================
 # Mock Species
@@ -295,4 +290,3 @@ def mock_tiering_result(mock_species_list):
         focus=mock_species_list[1:3],
         background=mock_species_list[3:],
     )
-

@@ -86,7 +86,8 @@ class AncestryEmbeddingPlugin(EmbeddingPlugin):
         
         for sp in species_list:
             ancestry = self._compute_ancestry_vector(sp, ctx)
-            if ancestry and len(ancestry.vector) > 0:
+            # Vectors are populated by the batch embedding call below.
+            if ancestry is not None:
                 self._ancestry_cache[sp.lineage_code] = ancestry
                 
                 # 使用向量作为索引
@@ -347,4 +348,3 @@ class AncestryEmbeddingPlugin(EmbeddingPlugin):
             "max_generation": max(generations) if generations else 0,
             "species_with_history": sum(1 for a in self._ancestry_cache.values() if a.trait_history),
         }
-

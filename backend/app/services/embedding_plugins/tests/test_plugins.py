@@ -242,7 +242,7 @@ class TestPluginManager:
 class TestBehaviorStrategyPlugin:
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
         from .. import behavior_strategy  # 注册插件
         
         self.service = MockEmbeddingService()
@@ -251,7 +251,7 @@ class TestBehaviorStrategyPlugin:
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_infer_behavior_profile(self):
         species = MockSpecies()
@@ -290,7 +290,7 @@ class TestBehaviorStrategyPlugin:
 class TestFoodWebPlugin:
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
         from .. import food_web_embedding
         
         self.service = MockEmbeddingService()
@@ -299,7 +299,7 @@ class TestFoodWebPlugin:
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_build_ecological_positions(self):
         ctx = MockContext()
@@ -344,7 +344,7 @@ class TestFoodWebPlugin:
 class TestTileBiomePlugin:
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
         from .. import tile_embedding
         
         self.service = MockEmbeddingService()
@@ -353,7 +353,7 @@ class TestTileBiomePlugin:
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_build_tile_profiles(self):
         ctx = MockContext()
@@ -390,7 +390,7 @@ class TestTileBiomePlugin:
 class TestEvolutionSpacePlugin:
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
         from .. import evolution_space
         
         self.service = MockEmbeddingService()
@@ -399,7 +399,7 @@ class TestEvolutionSpacePlugin:
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_collect_evolution_events(self):
         ctx = MockContext()
@@ -431,7 +431,7 @@ class TestEvolutionSpacePlugin:
 class TestAncestryPlugin:
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
         from .. import ancestry_embedding
         
         self.service = MockEmbeddingService()
@@ -440,7 +440,7 @@ class TestAncestryPlugin:
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_get_ancestor_chain(self):
         species = MockSpecies(lineage_code="A_B_C_D")
@@ -455,6 +455,8 @@ class TestAncestryPlugin:
         self.plugin._trait_history[species.lineage_code] = {
             "攻击性": [5, 5, 5, 5, 5],  # 稳定 = 高惯性
         }
+        # 惯性读取已索引的血统缓存；通过正式入口填充缓存和向量。
+        assert self.plugin.build_index(MockContext(all_species=[species])) == 1
         
         inertia = self.plugin.predict_genetic_inertia(species, "攻击性")
         assert inertia["inertia"] > 0.5
@@ -479,11 +481,11 @@ class TestDegradationPaths:
     
     def setup_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def teardown_method(self):
         from ..registry import PluginRegistry
-        PluginRegistry.clear()
+        PluginRegistry.reset_instances()
     
     def test_behavior_strategy_degradation_no_traits(self):
         """行为策略：缺少 abstract_traits 时应降级"""
@@ -621,4 +623,3 @@ class TestDegradationPaths:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

@@ -17,9 +17,6 @@ import numpy as np
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock, AsyncMock
 
-# 标记整个模块使用 asyncio
-pytestmark = pytest.mark.asyncio
-
 
 # ============================================================================
 # Mock Objects
@@ -524,8 +521,8 @@ class TestEcologicalRealismStage:
         """测试阶段依赖"""
         dep = stage.get_dependency()
         
-        assert "fetch_species" in dep.requires_stages
-        assert "tiering_and_niche" in dep.requires_stages
+        assert "获取物种列表" in dep.requires_stages
+        assert "物种分层与生态位" in dep.requires_stages
         assert "species_batch" in dep.requires_fields
         assert "plugin_data" in dep.writes_fields
     

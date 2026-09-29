@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import DateTime
 from sqlmodel import Column, Field, JSON, SQLModel
 
 
@@ -14,7 +15,7 @@ class EnvironmentEvent(SQLModel, table=True):
     scope: str = Field(default="global")
     description: str
     pressures: dict[str, Any] = Field(sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_type=DateTime)
 
 
 class Plate(SQLModel, table=True):
@@ -87,5 +88,4 @@ class HabitatPopulation(SQLModel, table=True):
     population: int = Field(default=0)
     suitability: float = Field(default=0.0)
     turn_index: int = Field(default=0, index=True)
-
 

@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import DateTime
 from sqlmodel import Column, Field, JSON, SQLModel
 
 
@@ -14,4 +15,4 @@ class TurnLog(SQLModel, table=True):
     pressures_summary: str
     narrative: str
     record_data: dict[str, Any] = Field(sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_type=DateTime)

@@ -58,6 +58,11 @@ class ConfigService:
     def _load_ui_config_if_needed(self) -> None:
         """按需加载 UI 配置（带缓存）"""
         if not self._ui_config_path.exists():
+            if self._ui_config is None:
+                from ..models.config import UIConfig
+
+                # 默认配置也属于当前缓存；文件随后创建时仍须重新加载。
+                self._ui_config = UIConfig()
             return
         
         try:

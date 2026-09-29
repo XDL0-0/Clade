@@ -10,6 +10,8 @@ import pytest
 from ..taichi_kernels import TaichiKernels, _taichi_available, benchmark_kernels
 
 
+pytestmark = pytest.mark.gpu
+
 class TestTaichiKernels:
     """Taichi 内核测试套件"""
     
