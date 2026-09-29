@@ -41,6 +41,20 @@ BACKEND_PORT=8022 npm run dev
 打开 Vite 给出的地址并加上 `/play`。原应用启动方式也挂载了新 API。
 当前这套运行环境使用 Linux/glibc x86-64。经典模式与旧存档使用原有入口，新沙盒单独保存。
 
+## 用手机玩
+
+电脑与手机连接同一个局域网，启动前端时允许局域网访问：
+
+```bash
+cd frontend
+BACKEND_PORT=8022 FRONTEND_PORT=5190 npm run dev -- --host 0.0.0.0 --strictPort
+```
+
+`BACKEND_PORT` 填当前后端端口。手机浏览器打开 Vite 输出的 `Network` 地址并加 `/play`。
+手机不能使用电脑上的 `127.0.0.1` 或 `localhost` 地址；电脑须保持开机且服务正在运行。
+如果使用同一个 Tailscale 网络，也可以用电脑的 Tailscale IP 与相同端口。
+校园或访客 Wi-Fi 如果隔离设备，可能无法直接通过局域网地址访问。
+
 ## 当前进度
 
 这是新模拟核心的可玩入口，经典模式尚未整体切换。本机已配置 Mammoet 的 `qwen3.8-flash-next`：显著适应与分化发生后，后台生成中文叙事，故事面板标注“本地 Qwen”。快进期间来不及完成的旧回合任务会丢弃；模型不可用不阻塞世界推进。

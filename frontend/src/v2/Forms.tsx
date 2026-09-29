@@ -4,6 +4,7 @@ import { createCommand, isUncertain } from "./api";
 import { useCommand } from "./queries";
 import { planExperiment, useExperiment, type PairResult } from "./experiment";
 import type { Snapshot } from "./types";
+import { randomUUID } from "./uuid";
 
 export function ErrorNotice({ error, retry }: { error: Error | null; retry?: () => void }) {
   if (!error) return null;
@@ -37,7 +38,7 @@ export function CreateWorldForm({
     onBusy?.(creating);
     return () => onBusy?.(false);
   }, [creating, onBusy]);
-  const [id, setId] = useState(() => `world-${crypto.randomUUID().slice(0, 8)}`);
+  const [id, setId] = useState(() => `world-${randomUUID().slice(0, 8)}`);
   const [timeline, setTimeline] = useState("main");
   const [seed, setSeed] = useState(() => String(crypto.getRandomValues(new Uint32Array(1))[0]));
   const [size, setSize] = useState("16x8");
@@ -62,7 +63,7 @@ export function CreateWorldForm({
       }),
       { onSuccess: (created) => {
           onCreated(created);
-          setId(`world-${crypto.randomUUID().slice(0, 8)}`);
+          setId(`world-${randomUUID().slice(0, 8)}`);
           setSeed(String(crypto.getRandomValues(new Uint32Array(1))[0]));
         } }
     );

@@ -1,5 +1,6 @@
 import type { Snapshot } from "./types";
 import type { FrozenRun, ScenarioPlan } from "./scenarioTypes";
+import { randomUUID } from "./uuid";
 
 export const PENDING_SCENARIO = "clade:v2:pending-scenario:v1";
 export const forcingFields = [
@@ -143,7 +144,7 @@ export function parseScenario(raw: string): ScenarioPlan {
   return parsed as ScenarioPlan;
 }
 export function makeScenario(snapshot: Snapshot, warming = false): ScenarioPlan {
-  const id = `experiment-${crypto.randomUUID()}`;
+  const id = `experiment-${randomUUID()}`;
   const offset = snapshot.environment.warming_offset;
   if (warming && (typeof offset !== "number" || !Number.isFinite(offset) || offset + 4 > 100))
     throw new Error("此源快照不能使用 +4°C 模板。");

@@ -16,6 +16,7 @@ import { readPendingScenario, restoredScenarioScope } from "./scenarioModel";
 import { lastWorld, readPendingTurn, rememberWorld } from "./playSession";
 import { PlayControls } from "./PlayControls";
 import { useTurnRunner } from "./useTurnRunner";
+import { randomUUID } from "./uuid";
 import "./lab.css";
 import "./play.css";
 
@@ -73,7 +74,7 @@ function ScopeLab({
         path: `${pathFor(scope)}/forks`,
         body: {
           parent: { ...snapshot.version },
-          child_timeline_id: `future-${crypto.randomUUID().slice(0, 8)}`,
+          child_timeline_id: `future-${randomUUID().slice(0, 8)}`,
         },
       }, { onSuccess: (created) => onOpen(scopeOf(created.version)) });
     } catch (error) {

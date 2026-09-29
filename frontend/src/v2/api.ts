@@ -1,4 +1,5 @@
 import type { Command, CreateWorld, Scope, Snapshot, Values, Version } from "./types";
+import { randomUUID } from "./uuid";
 
 export const API = "/api/v2";
 export const pathFor = ({ world, timeline }: Scope) =>
@@ -52,7 +53,7 @@ export function advanceCommand(snapshot: Snapshot, parameters: Values = {}): Com
     path: `${pathFor(scope)}/turns`,
     body: {
       expected_version: { ...snapshot.version },
-      idempotency_key: crypto.randomUUID(),
+      idempotency_key: randomUUID(),
       ...parameters,
     },
   };
@@ -68,7 +69,7 @@ export function rewindCommand(head: Snapshot, source: Snapshot): Command {
     body: {
       expected_version: { ...head.version },
       source_version: { ...source.version },
-      idempotency_key: crypto.randomUUID(),
+      idempotency_key: randomUUID(),
     },
   };
 }
