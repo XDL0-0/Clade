@@ -8,6 +8,8 @@
 
 重点沿 main/router → session/container → engine/stage_config → stages/tensor → repositories/save → async AI/SSE → frontend consumer 跟踪实际执行链，并对算法服务、缓存、配置、测试和旧文档交叉检索。对发现的关键控制流进行源码复核和受控探针；未连接真实 LLM、未运行真实玩家世界。静态阅读不等于证明全部生态模型正确，特别是 GPU 长跑与生物学参数仍未验证。
 
+分工补读还覆盖前端叶子组件（造物、基因编辑/基因库、历史、谱系、预测、设置）、CSS、根/模块API文档以及start/stop/diagnose/optimize脚本。测试正文、部分独立渲染组件与资源只做盘点/针对性检索，未对499个文件作逐行语义证明；没有像素级UI验证或执行有清理副作用的运维脚本。主要执行链与配置事实已经复核，不能把全仓文件清单等同于每个UI分支/算法都已运行验证。
+
 ## 环境
 
 - frontend：Node 24.19.0，npm 11.17.0，使用仓库 frontend/package-lock.json，npm ci --ignore-scripts --no-audit --no-fund 成功。

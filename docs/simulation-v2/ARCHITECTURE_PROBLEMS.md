@@ -154,8 +154,12 @@ React Query已安装且main.tsx挂QueryProvider；不能把迁移描述为“首
 - GameProvider中speciesRefreshTrigger定义/导出，但trigger调用未接通；旧SpeciesPanel依赖该数字。ModalsLayer.tsx:318–326创建物种成功只刷新map/queue，遗漏species。
 - api/species.ts的_lineageCache独立于Query；history限制窗口、AI timeline era/narrative缓存、轮询各自维护状态。load/new不能只调用几个refresh保证全页属于同一世界。
 - 当前历史地图主要展示map_changes文字，没有任意turn tile重建；“为什么进化”需要mortality/selection/trace证据，不能只把LLM说明当因果。
+- GeneLibrary/GeneLibraryModal.tsx:424–440用分类、ID hash和索引合成“模拟t-SNE”坐标；:589–597用speciesCount/(speciesCount+10)显示世界覆盖率、以固定25%/50%/25%分布显示等级。它们是展示启发式，不是测得的遗传距离/真实覆盖率；解释UI需标示或替换成同revision的真实统计。
+- AIAssistantPanel、SpeciesAITab、NicheCompareView等叶子组件仍直接请求embedding API；GenealogyView节点详情请求没有选中版本检查。前端迁移必须包括这些叶子，不能只改App或QueryProvider。
 
 先统一数据身份与提交事件，再做时间机/并行实验UI。具体query key、cursor和回放隔离在 [TARGET_PIPELINE.md](TARGET_PIPELINE.md)。
+
+补充运维与旧文档：根/后台diagnose_turn.py硬编码8000，而默认服务端口是8022；脚本会POST真实回合，不能作为只读健康检查。optimize_database.py的cleanup/--all会删除历史habitats并压缩旧档，不能用于尚未迁移的replay验收。start/stop.ps1会按端口结束进程，未作为本轮验证入口执行。旧Embedding/React Query/legacy完成清单互相不一致，验收应以调用图、fixture和测试结果为准。
 
 ## 11. 当前测试覆盖缺口
 
