@@ -10,6 +10,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 SCOPES = (
     "app/simulation/v2",
     "app/ai/jobs",
+    "app/api/v2",
     "app/storage",
     "tests/v2",
     "tests/simulation/v2",

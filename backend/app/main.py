@@ -25,6 +25,7 @@ import logging
 import sys
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator, Callable
 
 from fastapi import FastAPI, Request, Response
@@ -172,6 +173,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 存储到 app.state 供依赖注入使用
     app.state.container = container
     app.state.session = session
+
+    from .api.v2.runtime import mount_lab
+    mount_lab(app, Path(settings.data_dir) / "simulation-v2")
     
     logger.info("[启动] 服务容器初始化完成")
     
